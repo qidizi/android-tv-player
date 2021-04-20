@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
     private String seek = "0";
     // ~/android/platform-tools/adb forward tcp:11111 tcp:11111
     private final static int PORT = 11111;
-    private final static int dip_font_size = 40;
+    private final static int dip_font_size = 38;
     // 快进/快退时间
     private final static long seek_step = 1000 * 60 * 3;
 
@@ -119,7 +119,7 @@ public class MainActivity extends Activity {
                 // 视频
                 if (path.matches(".+\\.(mp4|m3u8)$")) {
                     catch_video = true;
-                    set_tip("捕获视频:" + url);
+                    set_tip("捕捉到视频:" + url);
                     info("捕获视频:" + url);
 
                     // 清理内存
@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
                         @Override
                         public void run() {
                             webView.stopLoading();
-                            webView.loadUrl("about:blank");
+                            webView.loadUrl(blank_url);
                         }
                     });
                     play_url(url, seek);
@@ -186,6 +186,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        webView.loadUrl(blank_url);
                         webView.setVisibility(View.GONE);
                     }
                 });
@@ -241,7 +242,7 @@ public class MainActivity extends Activity {
 
     private void get_video_url(final String url, final String new_seek) {
         seek = new_seek;
-        set_tip("准备从页面中捕捉视频链接:  " + url);
+        set_tip("尝试从页面中捕捉视频链接:  " + url);
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -260,6 +261,11 @@ public class MainActivity extends Activity {
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
         playerView.setFitsSystemWindows(true);
         playerView.setBackgroundColor(Color.BLACK);
+        // 防止快进/退出现切换焦点到非播放/暂停按钮上，出现无法暂停问题
+        playerView.setShowRewindButton(false);
+        playerView.setShowFastForwardButton(false);
+        playerView.setShowNextButton(false);
+        playerView.setShowPreviousButton(false);
         // 音量100%,声音大小由设备调节
         simpleExoPlayer.setVolume(1);
         simpleExoPlayer.addListener(new Player.EventListener() {
@@ -650,6 +656,7 @@ public class MainActivity extends Activity {
         }
 
         if (path.matches(".+\\.(mp4|m3u8|mpd)$")) {
+            set_tip("即将播放视频...");
             play_url(url, seek);
             return;
         }
@@ -786,13 +793,13 @@ public class MainActivity extends Activity {
             ImageSpan imageSpan = new ImageSpan(this, bitMap, ImageSpan.ALIGN_BASELINE);
             String qr_placeholder = "1";
             // 保留最后一个字符当qr 码占位码
-            final String txt = "扫码遥控\n" + qr_placeholder;
+            final String txt = "扫码遥控\n" + ip + "\n" + qr_placeholder;
             SpannableString spannableString = new SpannableString(txt);
             spannableString.setSpan(
                     imageSpan,
                     txt.length() - qr_placeholder.length(),
                     txt.length(),
-                    SpannableString.SPAN_INCLUSIVE_EXCLUSIVE
+                    SpannableString.SPAN_COMPOSING
             );
             qr_view.setText(spannableString);
             qr_view.setVisibility(TextView.VISIBLE);
