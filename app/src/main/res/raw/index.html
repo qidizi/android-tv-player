@@ -8,34 +8,65 @@
         <title>安卓电视播放器控制台</title>
         <link rel="icon" type="image/x-icon"
               href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII="/>
-        <!--android raw 下的id只用到文件名(不含后缀),所以,命名要唯一-->
-        <script src="vue.js?202008011449"></script>
-        <script>
-            document.write('<link rel="stylesheet" href="css.css?rnd=' + +new Date + '">');
-        </script>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+
+            html, body {
+                margin: 0;
+                padding: 0;
+                display: block;
+                height: 100%;
+                width: 100%;
+                font-size: 62%;
+            }
+
+            body {
+                background-color: white /*不考虑深色主题*/;
+                color: black;
+                font-size: 1rem;
+                text-align: center;
+            }
+
+            form {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+
+            button.btn {
+                display: block;
+                width: 100%;
+                height: 5%;
+            }
+
+            #url {
+                display: block;
+                width: 100%;
+                border: 0 none;
+                padding: 5px;
+                text-align: center;
+                height: 95%;
+                overflow: auto;
+                word-wrap: break-word;
+                resize: none;
+            }
+        </style>
     </head>
     <body>
-        <div id="app">
-            <i class="toast" v-html="toast"></i>
-            <!--
-
-            https://mojing.huoyanzuida.com/20200529/6324_7a17a32a/index.m3u8
-
-    https://www.hobiao.com/vodplay/787437-2-33/
-            -->
-            <input v-model.trim="media_url" class="media_url" onclick="this.select();"
-                   placeholder="视频链接或含视频页面链接"/>
-            <input v-model.trim="media_position" class="media_position" onclick="this.select();"
-                   type="number" step="1" min="0"
-                   placeholder="快进到..."/>
-            <input type="button" class="btn" value="发送" @click="send_url()"/>
-            <input type="button" class="btn" value="播放/暂停" @click="play_pause_toggle()"/>
-            <input type="button" class="btn" value="定位" @click="seek()"/>
-
-        </div>
-
-        <script type="text/javascript">
-            document.write('<script src="/js.js?rnd=' + +new Date + '"><\/script>');
-        </script>
+        <form method="GET" action="?">
+            <script>
+                document.write('<input type="hidden" value="' + +new Date + '" name="noCache" />');
+            </script>
+            <label for="url"></label>
+            <textarea
+                    id="url"
+                    name="url"
+                    placeholder="请输入视频的url"
+                    onfocus="this.select();"
+            ></textarea>
+            <button class="btn">发送</button>
+        </form>
     </body>
 </html>

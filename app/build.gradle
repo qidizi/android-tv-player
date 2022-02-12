@@ -5,9 +5,10 @@ android {
     buildToolsVersion "29.0.3"
     defaultConfig {
         // 如果这个不正确aide会提示R找不到。as正常不影响
-        applicationId "qidizi.tv_ime"
+        applicationId "qidizi.tv"
         versionCode 1
         versionName "1.0"
+        // https://developer.android.google.cn/studio/releases/platforms?hl=zh-cn
         minSdkVersion 16
         compileSdkVersion 29
         targetSdkVersion 29
