@@ -8,18 +8,19 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.ImageSpan;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
+import android.view.Display;
 import android.view.Gravity;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.annotation.Nullable;
-import com.google.zxing.BarcodeFormat;
+import com.google.zxingra.BarcodeFormat;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
@@ -27,39 +28,28 @@ import java.io.InputStream;
 import java.net.*;
 import java.util.Enumeration;
 
-/**
- * TODO api 16 无法正常播放
- */
-
 public class MainActivity extends Activity {
-    // ~/android/platform-tools/adb forward tcp:8080 tcp:8080
+    // ~/android/platform-tools/adb forward tcp:8080 tcp:8080 来影射avd中的端口到物理机
     // 一般的系统是不允许普通应用开启1024以下的端口的
     private final static int PORT = 8080;
-    private final static int dip_font_size = 38;
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         hasNet();
         createHttp();
         createQr();
     }
 
-    private int dp2px(@SuppressWarnings("SameParameterValue") final float dp) {
-        // x 为当前屏幕方向的横向尺寸; 目前在坚果m6上比率并不正确;
-        DisplayMetrics point = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(point);
-        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, point);
-
-    }
-
     private void createQr() {
+        Display display = getWindowManager().getDefaultDisplay();
+        Point point = new Point();
+        display.getSize(point);
+        int minSize = Math.min(point.x, point.y);
         // 创建二维码对象
         TextView qr_view = new TextView(this);
         qr_view.setBackgroundColor(Color.BLACK);
         qr_view.setGravity(Gravity.CENTER);
-        qr_view.setTextColor(Color.WHITE);
-        qr_view.setTextSize(TypedValue.COMPLEX_UNIT_SP, dip_font_size);
         FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -70,7 +60,6 @@ public class MainActivity extends Activity {
 
         try {
             String ip = getIpv4();
-            int size = dp2px(dip_font_size * 4);
             BitMatrix result = new QRCodeWriter().encode(
                     String.format(
                             // 防止idea报换https
@@ -78,7 +67,7 @@ public class MainActivity extends Activity {
                             ip,
                             PORT,
                             System.currentTimeMillis()
-                    ), BarcodeFormat.QR_CODE, size, size
+                    ), BarcodeFormat.QR_CODE, minSize, minSize
             );
             Bitmap bitMap = Bitmap.createBitmap(result.getWidth(), result.getHeight(), Bitmap.Config.ARGB_8888);
 
