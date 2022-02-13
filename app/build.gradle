@@ -28,7 +28,8 @@ android {
         // https://developer.android.google.cn/studio/releases/platforms?hl=zh-cn
         minSdkVersion 15
         compileSdkVersion 29
-        targetSdkVersion 30
+		// aide 用30 安装说包损坏
+        targetSdkVersion 29
     }
 
     signingConfigs {
@@ -80,5 +81,5 @@ dependencies {
     //implementation 'androidx.appcompat:appcompat:1.2.0'
     //implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
     /*显示2维码,3.4需要java 8*/
-    implementation 'com.google.zxing:zxing-parent:3.4.1'
+    implementation 'com.google.zxing:core:3.4.1'
 }
