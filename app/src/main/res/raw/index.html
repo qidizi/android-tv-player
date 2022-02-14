@@ -64,14 +64,26 @@
                     id="url"
                     name="url"
                     placeholder="
-请输入视频的url
-建议安装mx player
-
-{msg}
+请输入要在tv播放的视频url
+建议在电视端安装兼容性比较好的mx player
+发送的url会尝试复制至电视端的剪切板中，便于通过手动打开其它播放器粘贴方式进行播放
+需要给app授予联网权限
 "
                     onfocus="this.select();"
             ></textarea>
-            <button class="btn">发送</button>
+            <button class="btn" type="submit" onclick="
+return /^https?:\/+.+$/gi.test(document.getElementById('url').value) ? true : (alert('视频url无效'), false);
+">发送至电视（请留意电视上提示）
+            </button>
         </form>
+        <script>
+            +function () {
+                let result = String("&" + location.search.replace('?', '&') + '&').match(/&url=([^&]+)/i);
+
+                if (result) {
+                    document.getElementById('url').value = decodeURIComponent(result[1]);
+                }
+            }();
+        </script>
     </body>
 </html>

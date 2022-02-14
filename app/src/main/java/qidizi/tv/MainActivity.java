@@ -1,172 +1,186 @@
 package qidizi.tv;
 
-import android.Manifest;
 import android.app.Activity;
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.Point;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
+import android.text.method.ScrollingMovementMethod;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
-import android.view.Display;
 import android.view.Gravity;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
-import java.io.InputStream;
-import java.net.*;
-import java.util.Enumeration;
-import java.util.regex.Pattern;
-import android.widget.*;
-import android.text.method.*;
-import android.os.*;
-import android.content.*;
-
-public class MainActivity extends Activity
-{
+public class MainActivity extends Activity {
     final private static int tipId = 100000;
-	private static MainActivity mainActivity = null;
+    final private static int qrCodeId = tipId + 1;
+    private static MainActivity mainActivity = null;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState)
-	{
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-		mainActivity = this;
+        // 隐藏标题
+        this.getActionBar().hide();
+        // 隐藏标题，这个方案好像有时有问题，在小米9上
+        // this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        // 隐藏状态行
+        //this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        mainActivity = this;
+        // 创建qr code 图片容器
+        ImageView imageView = new ImageView(this);
+        imageView.setId(qrCodeId);
+        FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.CENTER
+        );
+        this.setContentView(imageView, layout);
+        // 创建提示view
+        TextView textView = new TextView(this);
+        textView.setGravity(Gravity.START);
+        layout = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP | Gravity.CENTER
+        );
+        addContentView(textView, layout);
+        textView.setId(tipId);
+        textView.setBackgroundColor(Color.GRAY);
+        textView.setTextColor(Color.BLACK);
+        textView.setPadding(10, 10, 10, 10);
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 40);
+        textView.setClickable(true);
+        // 只能上下滚动,true 会变成左右滚动
+        textView.setHorizontallyScrolling(false);
+        textView.setFocusable(true);
+        textView.setMovementMethod(new ScrollingMovementMethod());
     }
 
-    private void createQr()
-	{
-		String url;
-		try
-		{
-			url = MyApplication.getHttpUrl();	
-		}
-		catch (Exception e)
-		{
-			tip("获取ip失败：" + e.getMessage());
-			return;
-		}
-        Display display = getWindowManager().getDefaultDisplay();
-        Point point = new Point();
-        display.getSize(point);
-        // 只使用80%，剩下的给提示使用
-        int minSize = (int) (Math.min(point.x, point.y) * 0.8);
+    private void refreshLayout() {
+        ImageView imageView = findViewById(qrCodeId);
+        TextView textView = findViewById(tipId);
+
+        if (null == imageView || null == textView) {
+            MyApplication.toast("二维码及提示框不存在");
+            return;
+        }
+
+        // 目前小米手机的悬浮窗口获取的大小并不准确，且退出悬浮没有触发
+        DisplayMetrics metrics = this.getResources().getDisplayMetrics();
+        int width = metrics.widthPixels;
+        int height = metrics.heightPixels;
+        FrameLayout.LayoutParams layout;
+
+        if (width < height) {
+            // 如果是高屏/正方形，上下布局；
+            int minSize = Math.min(height / 2, width);
+            layout = new FrameLayout.LayoutParams(
+                    minSize,
+                    minSize,
+                    Gravity.BOTTOM | Gravity.CENTER
+            );
+            imageView.setLayoutParams(layout);
+            layout = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    height / 2,
+                    Gravity.TOP | Gravity.CENTER
+            );
+        } else {
+            // 如果是宽屏，左右
+            int minSize = Math.min(width / 2, height);
+            layout = new FrameLayout.LayoutParams(
+                    minSize,
+                    minSize,
+                    Gravity.START | Gravity.CENTER
+            );
+            imageView.setLayoutParams(layout);
+            layout = new FrameLayout.LayoutParams(
+                    width / 2,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    Gravity.END | Gravity.CENTER
+            );
+        }
+        textView.setLayoutParams(layout);
+    }
+
+    private void refreshQr() {
+        String url = MyApplication.getHttpUrl();
+        if (null == url) {
+            return;
+        }
         // 创建二维码对象
-
         QRCodeWriter writer = new QRCodeWriter();
-        try
-		{
-
-            BitMatrix bitMatrix = writer.encode(url, BarcodeFormat.QR_CODE, minSize, minSize);
+        try {
+            int size = 1024;
+            BitMatrix bitMatrix = writer.encode(url, BarcodeFormat.QR_CODE, size, size);
             int width = bitMatrix.getWidth();
             int height = bitMatrix.getHeight();
             Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
-            for (int x = 0; x < width; x++)
-			{
-                for (int y = 0; y < height; y++)
-				{
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
                     bmp.setPixel(x, y, bitMatrix.get(x, y) ? Color.BLACK : Color.WHITE);
                 }
             }
-            ImageView imageView = new ImageView(this);
-            imageView.setImageBitmap(bmp);
-            FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.MATCH_PARENT,
-				FrameLayout.LayoutParams.MATCH_PARENT,
-				// 上中
-				Gravity.BOTTOM | Gravity.CENTER
-            );
-            this.setContentView(imageView, layout);
+            ((ImageView) findViewById(qrCodeId)).setImageBitmap(bmp);
             tip("请扫码访问 " + url);
-        }
-		catch (Exception e)
-		{
-			e.printStackTrace();
-            tip("创建二维码失败:" + e.getMessage());            
+        } catch (Exception e) {
+            e.printStackTrace();
+            tip("创建二维码失败:" + e.getMessage());
         }
     }
 
-    private void tip(String msg)
-	{
-        try
-		{
-            TextView textView;
-
-            if (null == findViewById(tipId))
-			{
-                // 未存在，先创建
-                Display display = getWindowManager().getDefaultDisplay();
-                Point point = new Point();
-                display.getSize(point);
-                // 只使用20%，剩下的给qrCode使用
-                int height = (int) (point.y * 0.2);
-                textView = new TextView(this);
-                textView.setGravity(Gravity.CENTER);
-                FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(
-					FrameLayout.LayoutParams.MATCH_PARENT,
-					height,
-					Gravity.TOP | Gravity.CENTER
-                );
-                addContentView(textView, layout);
-                textView.setId(tipId);
-                textView.setBackgroundColor(Color.WHITE);
-                textView.setTextColor(Color.BLACK);
-                textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 50);				
-				textView.setClickable(true);
-				textView.setHorizontallyScrolling(true);
-				textView.setFocusable(true);
-				textView.setMovementMethod(new ScrollingMovementMethod());
-				textView.setScrollbarFadingEnabled(false);				
-            }
-			else
-			{
-                textView = findViewById(tipId);
-            }
-
-            if (null == textView) throw new Exception("创建textViewj失败");
-            textView.setText(msg);
-        }
-		catch (Exception ignore)
-		{
-			ignore.printStackTrace();
+    private void tip(String msg) {
+        try {
+            ((TextView) findViewById(tipId)).setText(msg);
+        } catch (Exception e) {
+            e.printStackTrace();
             // 如果在activity中显示失败，就换这个方式
             MyApplication.toast(msg);
         }
     }
 
     @Override
-    protected void onStart()
-	{
-        // TODO: Implement this method
+    protected void onResume() {
+        refreshQr();
+        // 这个不能放到 super.onResume 后面，否则会导致出错
+        // android.os.BinderProxy cannot be cast to android.app.servertransaction.ClientTransaction
+        // 放在这里，小米 9 悬浮窗口退出都无法刷新
+        // refreshLayout();
+        super.onResume();
+    }
+
+    @Override
+    public void onWindowAttributesChanged(WindowManager.LayoutParams params) {
+        // 放在这，目前小米 9 切成悬浮布局异常
+        refreshLayout();
+        super.onWindowAttributesChanged(params);
+    }
+
+    @Override
+    protected void onDestroy() {
+        mainActivity = null;
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onStart() {
         super.onStart();
-        createQr();
+        MyApplication.setInBackground(false);
     }
 
-    private void toastAndTip(String msg)
-	{
-        MyApplication.toast("请切到app查看新消息");
-        tip(msg);
+    @Override
+    protected void onPause() {
+        super.onPause();
+        MyApplication.setInBackground(true);
     }
 
-	@Override
-	protected void onDestroy()
-	{
-		mainActivity = null;
-		// TODO: Implement this method
-		super.onDestroy();
-	}	
-	
-	public static MainActivity getMe(){
-		return mainActivity;
-	}
+    public static MainActivity getMe() {
+        return mainActivity;
+    }
 }
