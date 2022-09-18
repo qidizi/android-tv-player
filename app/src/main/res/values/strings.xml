@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">tv播放器</string>
+    <string name="tipTpl"><![CDATA[
+浏览器或微信扫码访问%s来控制。%s
+]]></string>
 </resources>

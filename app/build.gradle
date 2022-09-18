@@ -1,4 +1,6 @@
-// 配置参考 https://developer.android.google.cn/studio/build?hl=zh-cn
+repositories {
+    mavenCentral()
+}// 配置参考 https://developer.android.google.cn/studio/build?hl=zh-cn
 apply plugin: 'com.android.application'
 
 android {
@@ -11,7 +13,6 @@ android {
      * the build tools by default.
      */
     // 27 是8，兼容aide
-    buildToolsVersion "29.0.3"
     /**
      * compileSdkVersion specifies the Android API level Gradle should use to
      * compile your app. This means your app can use the API features included in
@@ -29,7 +30,7 @@ android {
         minSdkVersion 15
         compileSdkVersion 29
         // aide 用30 安装说包损坏
-        targetSdkVersion 29
+        targetSdkVersion 32
     }
 
     signingConfigs {
@@ -78,5 +79,5 @@ android {
 
 dependencies {
     /*显示2维码,3.4需要java 8*/
-    implementation 'com.google.zxing:core:3.4.1'
+    implementation 'com.google.zxing:core:3.5.0'
 }

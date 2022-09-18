@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "qidiziTvPlayer",
+  "version": "1.0",
+  "description": "自动检测页面上视频开始适当形式播放",
+  "homepage_url": "https://github.com/qidizi/android-tv-player",
+  "author": "qidizi",
+  "icons": {
+    "48": "xpi.png"
+  },
+  "permissions": [
+    "<all_urls>",
+    "tabs",
+    "activeTab"
+  ],
+  "background": {
+    "scripts": ["bg.js"],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "all_frames": true,
+      "matches": [
+        "<all_urls>"
+      ],
+      "run_at": "document_idle",
+      "match_about_blank": true,
+      "js": [
+        "xpi.js"
+      ],
+      "css": [
+        "xpi.css"
+      ]
+    }
+  ]
+}
