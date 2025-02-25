@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ https://developer.android.google.cn/privacy-and-security/security-config?hl=zh-cn#TrustingAdditionalCas
+ 解决旧设备缺失新https证书机构的证书问题，把证书下载到res/raw
+ 必须在 AndroidManifest.xml 中引用 network_security_config.xml 文件。android:networkSecurityConfig="@xml/network_security_config"
+ -->
+<network-security-config>
+    <base-config>
+        <trust-anchors>
+            <!-- 补充 letsencrypt 的证书 https://letsencrypt.org/certificates/?spm=5176.28103460.0.0.297c5d27oGOwQC
+             一般用到  ISRG Root X1 与 ISRG Root X2，可用cat a.pem b.pem >letsEncrypt.pem 合并多个证书为一个文件
+             文件名只允许小写与下划线
+             -->
+            <certificates src="@raw/lets_encrypt"/>
+
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

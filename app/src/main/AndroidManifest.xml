@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!--    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />-->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- android 版本列表   https://source.android.google.cn/setup/start/build-numbers?hl=zh-cn
+    6 m，7 n，o 8，p 9，q 10，其实前面都是以名称的首字母来取用
+    -->
+    <!--android:largeHeap = "false" 限制app申请内存大小
+    解决 https://exoplayer.dev/troubleshooting.html#fixing-cleartext-http-traffic-not-permitted-errors
+    -->
+
+    <!-- application元素添加 android:usesCleartextTraffic="true" 解决禁止加载http协议问题
+    https://developer.android.google.cn/media/media3/exoplayer/troubleshooting?hl=zh-cn#fixing-cleartext-http-traffic-not-permitted-errors -->
+    <application
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+        android:usesCleartextTraffic="true">
+        <!--暂不提供程序图标，使用系统默认的; 必须横屏显示-->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleInstance">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,31 @@
+// dsl 文档  https://docs.gradle.org/current/dsl/org.gradle.api.tasks.Exec.html#org.gradle.api.tasks.Exec:environment
+// dsl 文档 的 Build script blocks 分类，指可以直接放在当前文件--不被其它block包住的
+// android 关于 build.gradle https://developer.android.google.cn/studio/build?hl=zh-cn
+
+// 它的前面只能 放指定的block
+plugins {
+    // https://developer.android.google.cn/build/releases/gradle-plugin?hl=zh-cn#updating-gradle
+    id 'com.android.application' version '8.8.1' apply false
+    // https://developer.android.google.cn/studio/projects/android-library?hl=zh-cn#groovy
+    // id 'com.android.library' version '8.6.0' apply false
+}
+
+// 单应用/单模块android，只需要一个这名称文件
+// 注意相对路径全部是相对于这个工程(project)路径
+// println("工程路径" + projectDir.absolutePath)
+var localProperties = "local.properties"
+var androidDir = System.properties['user.home'] + "/android/"
+
+
+if (!file(androidDir).exists()) {
+    throw new Error(String.format("用来存放android相关资源的目录 %s  不存在！\n" +
+            "该目录下有 build-tools、platform-tools、ndk、platforms 等目录。 \n" +
+            "请从 https://developer.android.com/studio 下载部署。", androidDir))
+}
+
+if (!file(localProperties).exists()) {
+    // 自动生成本地配置
+    printf("配置文件 %s/%s 不存在，创建...", projectDir.absolutePath, localProperties)
+    file(localProperties).write("sdk.dir=" + androidDir + "\n")
+}
+

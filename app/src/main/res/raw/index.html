@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>安卓电视播放器控制台</title>
+    <link rel="icon" type="image/x-icon"
+        href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII=" />
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            font-size: 16px;
+        }
+
+        html,
+        body,
+        form {
+            margin: 0;
+            padding: 0;
+            display: block;
+            height: 100%;
+            width: 100%;
+        }
+
+        body {
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .maxBody {
+            overflow: hidden;
+            max-width: 800px;
+            height: 100%;
+            margin: 0 auto;
+            padding: 0;
+            position: relative;
+        }
+
+        #panelBox {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background-color: rgba(51, 51, 51, 0.5);
+            padding: 0.5rem;
+        }
+
+        #panelBox a {
+            display: inline-block;
+            margin: 0.1rem;
+        }
+
+        form {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+            background-color: #333;
+            padding: 0.5rem;
+        }
+
+        label {
+            display: block;
+            margin: 0.5rem;
+        }
+
+        .required {
+            color: red;
+        }
+
+        button {
+            margin: 0.5rem;
+        }
+
+        #toastBox {
+            display: block;
+            width: 100%;
+            overflow: hidden;
+            word-wrap: break-word;
+            height: auto;
+            padding: 0.5rem;
+        }
+
+        #toastBox p {
+            text-align: left;
+            margin: 0.1rem;
+        }
+
+        .line,
+        .lineBox {
+            display: inline-block;
+            width: 10rem;
+            text-align: left;
+        }
+
+        .line {
+            background-color: transparent;
+            border-color: transparent;
+            border-bottom-color: unset;
+        }
+
+        [name="closeFormBtn"] {
+            color: red;
+        }
+
+        .txtLeft {
+            text-align: left;
+        }
+
+        .inputTitle {
+            display: inline-block;
+            width: 7rem;
+            text-align: left;
+        }
+
+        #videoListBox {
+            max-height: 10rem;
+            overflow: auto;
+        }
+
+        #videoListBox li {
+            line-height: 2rem;
+        }
+
+        #videoListBox li a {
+            display: inline-block;
+            margin: 0 0.5rem;
+        }
+
+        #playUrlForm.forPlay .nameLabel {
+            display: none;
+        }
+
+        #playUrlForm.forList .nameLabel {
+            display: unset;
+        }
+
+        #playUrlForm.forList .refererLabel,
+        #playUrlForm.forList .userAgentLabel {
+            display: none;
+        }
+
+        fieldset.list {
+            padding: 0;
+        }
+    </style>
+    <script>
+        // 放在最后，防止初始就出错，toast方法还未定义
+        window.addEventListener('error', e => {
+            (errorToast || alert)('js代码出错:' + e.message);
+            return true;
+        });
+        window.addEventListener('unhandledrejection', e => {
+            (errorToast || alert)('js有未捕获异常：' + e.reason);
+            return true;
+        });
+    </script>
+</head>
+
+<body>
+    <input type="file" id="fileInput" style="display: none;" title="用于选取文件" />
+
+    <div class="maxBody">
+        <div id="toastBox"></div>
+        <div id="panelBox">
+            <a href="#" name="playUrlBtn" title="把新的视频url推送到电视开始播放">换片</a>
+            <a href="#" name="playBtn" title="尝试开始播放">播放</a>
+            <a href="#" name="pauseBtn" title="尝试暂停">暂停</a>
+            <a href="#" name="seekBtn" title="跳转到指定播放进度">跳转</a>
+            <a href="#" name="volumeDownBtn" title="尝试让电视减小声音">小声</a>
+            <a href="#" name="volumeMuteBtn" title="尝试让电视静音">静音</a>
+            <a href="#" name="volumeUpBtn" title="尝试让电视增加声音">大声</a>
+            <a href="#" name="setProxyBtn" title="配置代理">代理</a>
+            <a href="#" name="insertJsBtn" title="以url方式注入远程js文件,如可通过app跨域请求iptv url扩展功能">注入</a>
+            <a href="#" name="exportBtn" title="全部配置下载保存为json文件">导出</a>
+            <a href="#" name="importBtn" title="从json文件导入全部配置">导入</a>
+        </div>
+
+        <form id="playUrlForm" class="forPlay" onsubmit="return false">
+            <input type="hidden" name="action" value="playUrl" />
+            <input type="hidden" name="httpProxyHost" />
+            <input type="hidden" name="httpProxyPort" />
+            <input type="hidden" name="todo" value="0" />
+            <label class="nameLabel">
+                <strong class="inputTitle"><span class="required">*</span>别名</strong>
+                <span class="lineBox"><input type="text" class="line" name="videoName" /></span>
+            </label>
+            <label>
+                <strong class="inputTitle"><span class="required">*</span>视频url</strong>
+                <!-- 测试视频 
+                 https://img.qiluyidian.net/174047308883x26wbf9zxvideo_1080p_1_773253.mp4
+                 -->
+                <input type="url" class="line" name="videoUrl" required="required" onfocus="this.select();" />
+            </label>
+            <label>
+                <strong class="inputTitle">需代理<sup><a href="#" name="setProxyBtn" title="配置代理">去配置</a></sup></strong>
+                <span class="lineBox"><input type="checkbox" name="useProxy" /></span>
+            </label>
+            <label class="refererLabel">
+                <strong class="inputTitle">referer</strong>
+                <input type="url" class="line" name="refererUrl" onfocus="this.select();" placeholder="默认用视频url" />
+            </label>
+            <label class="userAgentLabel">
+                <strong class="inputTitle">userAgent</strong>
+                <input type="text" class="line" name="userAgent" onfocus="this.select();" placeholder="默认用浏览器的" />
+            </label>
+            <input class="btn" type="submit" name="submitBtn" value="立刻播放" />
+            <input type="button" class="btn" name="closeFormBtn" value="关闭" />
+            <br>
+            <br>
+            <fieldset class="list">
+                <legend>视频列表
+                    <sup><a href="#" name="addListBtn">添加↑</a></sup>
+                </legend>
+                <ol class="txtLeft" id="videoListBox">
+                </ol>
+            </fieldset>
+        </form>
+
+        <form id="seekForm" onsubmit="return false">
+            <input type="hidden" name="action" value="seek" />
+            <label>
+                <strong class="inputTitle"><span class="required">*</span>跳转到(分钟)</strong>
+                <input type="number" class="line" name="seekMinutes" required="required" onfocus="this.select();" />
+            </label>
+            <button class="btn" type="submit">确认</button>
+            <button type="button" class="btn" name="closeFormBtn">关闭</button>
+        </form>
+
+        <form id="insertJsForm" onsubmit="return false">
+
+            <label>
+                <strong class="inputTitle"><span class="required">*</span>注入js的src</strong>
+                <input type="url" class="line" name="jsSrc" id="jsSrc" required="required" onfocus="this.select();" />
+            </label>
+            <input class="btn" type="submit" value="确认" />
+            <button type="button" class="btn" name="closeFormBtn">关闭</button>
+        </form>
+
+        <form id="setProxyForm" onsubmit="return false">
+            <label>
+                <strong class="inputTitle">http代理主机</strong>
+                <input type="text" class="line" name="httpProxyHost" onfocus="this.select();" placeholder="ip或域名" />
+            </label>
+            <label>
+                <strong class="inputTitle">http代理端口</strong>
+                <input type="number" max="65535" min="1025" class="line" name="httpProxyPort" onfocus="this.select();"
+                    placeholder="1024&lt;端口&lt;=65535" />
+            </label>
+            <button class="btn" type="submit">确认</button>
+            <button type="button" class="btn" name="closeFormBtn">关闭</button>
+        </form>
+
+    </div>
+    <script>
+        // 后续考虑换成vueJs？
+        let toastHider;
+        const lsKey = "tvPlayer.";
+        const lsKeyJs = lsKey + "js";
+        const lsKeyPlaying = lsKey + "playing";
+        const lsKeyVideoList = lsKey + "list";
+        const lsKeyProxy = lsKey + "proxy";
+        // json精短减少 localStore 存储量
+        const videoListCache = {};
+        // 支持通过参数来指定请求的tv地址，方便本地调试，而不用修改html就要build apk，格式为 ?tv=ip:端口
+        const tv = new URLSearchParams(location.search).get('tv') || location.host || '127.0.0.1';
+        // 0表示播放，大于0表示编辑，-1表示增加列表
+        const todoPlay = +gid('playUrlForm').elements.todo.value;
+        const todoAddList = -1;
+        const videoSubmitPlay = gid('playUrlForm').elements.submitBtn.value;
+        const videoSubmitList = '加入下方列表';
+        const videoSubmitEdit = '保存更改';
+        let videoListOld;
+        // 不能小于1，逻辑中基于》0判断属于编辑
+        let listIdStart = 1;
+
+        window.onload = () => {
+            successToast('有源易播--By qidizi。欢迎使用！');
+            loadJs(localStorage.getItem(lsKeyJs));
+            let list = localStorage.getItem(lsKeyVideoList);
+            if (list) {
+                try {
+                    let obj = JSON.parse(list);
+                    let keys = Object.keys(obj).sort((a, b) => a - b).forEach(key => {
+                        let item = obj[key];
+                        pushList(item.u, item.n, +item.p);
+                    });
+                } catch (e) {
+                    errorToast('视频列表解析失败：' + e);
+                    console.error(e);
+                }
+            }
+            let proxy = getProxy();
+            if (proxy) {
+                let form = gid('setProxyForm');
+                form.elements.httpProxyHost.value = proxy.host;
+                form.elements.httpProxyPort.value = proxy.port;
+            }
+
+            // 若注入了js，外置初始方法优先。
+            // 放在前面方便优先生成动态列表等,并可替换内置js方法
+            // 若本方法返回true，则不再执行内置js方法
+            if (window.onloadInsert && window.onloadInsert())
+                return;
+
+            getInfo(url => {
+                document.title = getQueryString(url, 'devName', '安卓电视播放器控制台');
+                infoToast("电视信息：\n" + getQueryString(url, 'devInfo', '设备信息未知'));
+            });
+        };
+
+        window.onbeforeunload = () => {
+            // 若注入了js，外置初始方法优先。
+            // 若本方法返回true，则不再执行内置js方法
+            // 可处理保存配置之类的事情
+            if (window.onbeforeunloadInsert && window.onbeforeunloadInsert()) {
+                return;
+            }
+
+            // 这里简单用 localStorage 保存配置，若有更大数据需求，可考虑自定义时使用浏览器db，一般新浏览都支持
+            getInfo(url => {
+                // 无播放地址或出错的，都不用记下来下回使用
+                if (url.get('playErrorCode') !== '0' || url.get('videoUrl') === '') return localStorage.removeItem(lsKeyPlaying);
+                localStorage.setItem(lsKeyPlaying, url.get('positionMs') + ' ' + url.get('videoUrl'));
+            });
+            storeList();
+        };
+
+        document.addEventListener('click', e => {
+            let fn = window[e.target.name + 'Clk'];
+
+            if ('function' !== typeof fn) return;
+            fn.call(e.target);
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+
+        document.addEventListener('submit', e => {
+            let fn = window[e.target.id + 'Submit'];
+            if ('function' === typeof fn) fn.call(e.target);
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+
+        function loadJs(src) {
+            if (!src) return;
+            let dom = document.createElement("script");
+            gid('jsSrc').value = dom.src = src;
+            document.head.appendChild(dom);
+        }
+
+        function gid(id) {
+            return document.getElementById(id);
+        }
+
+        function showForm(name, show) {
+            gid(name.replace(/btn$/i, '') + 'Form').style.display = show ? 'block' : 'none';
+        }
+
+        function setProxyBtnClk() {
+            showForm(this.name, true);
+        }
+
+        function playUrlBtnClk() {
+            showForm(this.name, true);
+        }
+
+        function closeFormBtnClk() {
+            hideDom(this.form);
+        }
+
+        function playBtnClk() {
+            tryPlayPause(1);
+        }
+
+        function pauseBtnClk() {
+            tryPlayPause(0);
+        }
+
+        function volumeUpBtnClk() {
+            volumeCtrl(1);
+        }
+
+        function volumeMuteBtnClk() {
+            volumeCtrl(0);
+        }
+
+        function volumeDownBtnClk() {
+            volumeCtrl(-1);
+        }
+
+        function insertJsBtnClk() {
+            showForm(this.name, true);
+        }
+
+        function seekBtnClk() {
+            showForm(this.name, true);
+        }
+
+        function addListBtnClk() {
+            let form = gid('playUrlForm');
+            playUrlFormSwitch(todoAddList);
+        }
+
+        function delListBtnClk() {
+            let listId = +this.parentElement.getAttribute('i');
+            let item = videoListCache[listId];
+            if (!item) return errorToast(`未找到该条目(id=${listId}),请刷新页再试`);
+            let name = item.n || '[条目别名为空]';
+            if (!confirm('确定删除如下条目？\n' + name)) return;
+            delete videoListCache[listId];
+            this.parentElement.remove();
+            storeList();
+            successToast('已删除' + name);
+        }
+
+        function editListBtnClk() {
+            let listId = +this.parentElement.getAttribute('i');
+            let item = videoListCache[listId];
+            if (!item) return;
+            videoListOld = list2str(item);
+            let form = gid('playUrlForm');
+            playUrlFormSwitch(listId);
+            form.elements.videoUrl.value = item.u;
+            form.elements.videoName.value = item.n;
+            form.elements.useProxy.checked = +item.p;
+        }
+
+        function playListBtnClk() {
+            let listId = +this.parentElement.getAttribute('i');
+            let item = videoListCache[listId];
+            if (!item) return;
+            let form = gid('playUrlForm');
+            playUrlFormSwitch(todoPlay);
+            form.elements.videoUrl.value = item.u;
+            form.elements.refererUrl.value = item.u;
+            form.elements.useProxy.checked = +item.p;
+            playUrlFormSubmit.call(form);
+        }
+
+        function exportBtnClk() {
+            let config = {};
+
+            for (let i = 0; i < localStorage.length; i++) {
+                let key = localStorage.key(i);
+                if (!key.startsWith(lsKey)) continue;
+                config[key] = localStorage.getItem(key);
+            }
+
+            let blob = new Blob([JSON.stringify(config)], { type: 'application/json' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'tvPlayerConfig.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            successToast('导出全部配置成功，可用于备份或分享导入');
+        }
+
+        function importBtnClk() {
+            if (!confirm('导入配置会覆盖当前配置，确定要导入吗？\n建议先导出备份；导入成功页面会刷新；')) return;
+
+            getFile(file => {
+                if (file.type !== 'application/json' || !file.name.toLowerCase().endsWith('.json')) {
+                    errorToast('导入文件不是json格式：' + file.type);
+                    return;
+                }
+
+                if (file.size < 2) {
+                    errorToast('导入文件太小：' + file.size);
+                    return;
+                }
+
+                let reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        let config = JSON.parse(reader.result);
+                        for (let key in config) {
+                            if (key.startsWith(lsKey)) {
+                                localStorage.setItem(key, config[key]);
+                            }
+                        }
+
+                        successToast('导入配置成功');
+                        // 请配置重新加载
+                        setTimeout(() => location.reload(), 1000);
+                    } catch (e) {
+                        errorToast('导入配置json异常：' + e.message);
+                    }
+                };
+                reader.readAsText(file, 'utf-8');
+            });
+        }
+
+        function tryPlayPause(isPlay) {
+            fetchUrl({ action: 'tryPlayPause', isPlay }, url => successToast(getQueryString(url, 'ok', '无返回信息')));
+        }
+
+        function volumeCtrl(how) {
+            fetchUrl({ action: 'volumeCtrl', how }, url => successToast(getQueryString(url, 'ok', '无返回信息')));
+        }
+
+        function playUrlFormSwitch(how) {
+            let form = gid('playUrlForm');
+            form.reset();
+            let clsBtn = form.elements.closeFormBtn;
+            form.className = 'forList';
+            clsBtn.onclick = () => playUrlFormSwitch(todoPlay);
+            let value;
+
+            switch (how) {
+                case todoPlay:
+                    form.className = 'forPlay';
+                    value = videoSubmitPlay;
+                    clsBtn.value = '关闭';
+                    clsBtn.onclick = null;
+                    break;
+                case todoAddList:
+                    value = videoSubmitList;
+                    clsBtn.value = '不加了';
+                    break;
+                default:
+                    value = videoSubmitEdit;
+                    clsBtn.value = '放弃编辑';
+            }
+
+            form.elements.todo.value = how;
+            form.elements.submitBtn.value = value;
+        }
+
+        function playUrlFormSubmit() {
+            let elements = this.elements;
+            let todo = +elements.todo.value;
+            let videoName = elements.videoName.value = elements.videoName.value.trim();
+            let videoUrl = elements.videoUrl.value = elements.videoUrl.value.trim();
+            let refererUrl = elements.refererUrl.value = elements.refererUrl.value.trim() || videoUrl;
+            let userAgent = elements.userAgent.value = elements.userAgent.value.trim() || navigator.userAgent;
+            let useProxy = +elements.useProxy.checked;
+
+            if (!isUrl(videoUrl)) {
+                errorToast('视频url格式有误: ' + videoUrl);
+                return;
+            }
+
+            if (todo === todoPlay) {
+                if (!isUrl(refererUrl)) {
+                    errorToast('referer不是url格式: ' + refererUrl);
+                    return;
+                }
+
+                let host = port = '';
+
+                if (useProxy) {
+                    let proxy = getProxy();
+
+                    if (!proxy) {
+                        errorToast('无法播放：代理未配置');
+                        return;
+                    }
+
+                    host = proxy.host;
+                    port = proxy.port;
+                }
+
+                elements.httpProxyHost.value = host;
+                elements.httpProxyPort.value = port;
+                fetchUrl(elements, url => {
+                    successToast(getQueryString(url, 'ok', '无返回信息'));
+                });
+                return;
+            }
+
+            // 添加或编辑
+            if (!videoName) {
+                errorToast('视频名称不能为空');
+                return;
+            }
+
+            if (todo === todoAddList) {
+                // 追加到缓存
+                pushList(videoUrl, videoName, useProxy);
+            } else {
+                if (!(todo > 0)) {
+                    errorToast('非法的视频条目序号:' + todo);
+                    return;
+                }
+
+                let obj = videoListCache[todo];
+
+                if (!obj) {
+                    errorToast(`第${todo}个视频条目已不存在`);
+                    return;
+                }
+
+
+                if (list2str(obj) !== videoListOld) {
+                    errorToast(`无法保存！该条目与列表第${todo}条内容不配置,未编辑前信息：\n${videoListOld}\\n当前却是：\n` + list2str(obj));
+                    return;
+                }
+
+                obj.u = videoUrl;
+                obj.n = videoName;
+                obj.p = useProxy;
+                document.querySelector(`#videoListBox li[i="${todo}"] a[name="playListBtn"]`).innerText = obj.n;
+            }
+
+            storeList();
+            playUrlFormSwitch(todoPlay);
+
+            if (todo === todoAddList) {
+                successToast('已添加到播放列表');
+            } else {
+                successToast('修改已保存');
+            }
+        }
+
+        function seekFormSubmit() {
+            let elements = this.elements;
+            elements.seekMinutes.value = Math.max(0, +elements.seekMinutes.value);
+
+            fetchUrl(elements, url => {
+                successToast(getQueryString(url, 'ok', '无返回信息'));
+                hideDom(this);
+            });
+        }
+
+        function insertJsFormSubmit() {
+            let elements = this.elements;
+            let src = elements.jsSrc.value.trim();
+
+            if (!isUrl(src)) {
+                errorToast('js src非法：' + src);
+                return;
+            }
+
+            localStorage.setItem(lsKeyJs, src);
+            loadJs(src);
+            hideDom(this);
+            successToast('js已注入');
+        }
+
+        function setProxyFormSubmit() {
+            let elements = this.elements;
+            let hostDom = elements.httpProxyHost;
+            let portDom = elements.httpProxyPort;
+            let host = hostDom.value = hostDom.value.trim();
+            let port = portDom.value = +portDom.value;
+
+            if (!/^([a-z\d-]+\.)+[a-z]{2,}$|^\d{1,3}(\.\d{1,3}){3}$/i.test(host)) {
+                errorToast('代理主机必须是ipv4或域名：' + host);
+                hostDom.value = '';
+                return;
+            }
+
+            if (port < 1025 || port > 65535) {
+                errorToast('代理端口必须大于1024，不大于65535：' + port);
+                portDom.value = 0;
+                return;
+            }
+
+            localStorage.setItem(lsKeyProxy, host + ':' + port);
+            hideDom(this);
+            successToast('代理已保存');
+        }
+
+        function pushList(videoUrl, name, useProxy) {
+            // 确保id》0
+            let listId = ++listIdStart;
+            videoListCache[listId] = { u: videoUrl, n: name, p: +useProxy || 0 };
+            let ol = gid('videoListBox');
+            let li = document.createElement('li');
+            li.setAttribute('i', listId);
+            let a = document.createElement('a');
+            a.href = '#';
+            a.innerText = name;
+            a.name = 'playListBtn';
+            li.appendChild(a);
+            a = document.createElement('a');
+            a.href = '#';
+            a.innerText = '删除';
+            a.name = 'delListBtn';
+            li.appendChild(a);
+            a = document.createElement('a');
+            a.href = '#';
+            a.innerText = '编辑';
+            a.name = 'editListBtn';
+            li.appendChild(a);
+            ol.appendChild(li);
+        }
+
+        function getInfo(cb) {
+            fetchUrl({
+                action: 'getInfo'
+            }, cb);
+        }
+
+        function getQueryString(qs, name, def) {
+            return (qs instanceof URLSearchParams ? qs : new URLSearchParams(qs)).get(name) || def;
+        }
+
+        function fetchUrl(get, ok) {
+            switch (type(get)) {
+                case 'Object':
+                    break;
+                case 'HTMLFormControlsCollection':
+                    let obj = {};
+                    for (let i = 0; i < get.length; i++) {
+                        let item = get[i];
+                        if (!item.name) continue;
+                        obj[item.name] = item.value;
+                    }
+                    get = obj;
+                    break;
+                default:
+                    errorToast('fetchUrl get参数类型错误:' + type(get));
+                    console.error(get);
+                    return;
+            }
+            let url = 'http://' + tv + '/?' + new URLSearchParams(get).toString();
+            fetch(url, {
+                cache: 'no-cache',
+                method: 'GET'
+            }).then(async res => {
+                let url = await res.text();
+                // 统一处理请求失败，不转给后层处理
+                let fatal = getQueryString(url, 'fatal', '');
+                fatal ? errorToast("请求出错：" + fatal) : ok(new URLSearchParams(url));
+            }).catch(err => { errorToast(get.action + '请求失败:' + err + '; ' + url); console.error(err); });
+        }
+
+        function infoToast(msg) {
+            toast(msg, 'auto');
+        }
+
+        function successToast(msg) {
+            toast(msg, 'green');
+        }
+
+        function warnToast(msg) {
+            toast(msg, 'orange');
+        }
+
+        function errorToast(msg) {
+            toast(msg, 'red');
+        }
+
+        function toast(msg, color) {
+            let box = gid('toastBox');
+            let line = document.createElement('p');
+            line.innerText = msg;
+            line.style.color = color || 'auto';
+            box.prepend(line);
+            showDom(box);
+            clearInterval(toastHider);
+            toastHider = setInterval(() => {
+                if (box.childElementCount > 0) {
+                    box.removeChild(box.lastElementChild);
+                } else {
+                    hideDom(box);
+                    clearInterval(toastHider);
+                }
+            }, 5000);
+        }
+
+        function list2str(obj) {
+            return ['需代理', obj.p, 'url', obj.u, '别名', obj.n].join('\n');
+        }
+
+        function type(obj) {
+            return Object.prototype.toString.call(obj).slice(8, -1);
+        }
+
+        function hideDom(dom) {
+            dom.style.display = 'none';
+        }
+
+        function showDom(dom) {
+            dom.style.display = 'block';
+        }
+
+        function getFile(cb) {
+            let input = gid('fileInput');
+            input.onchange = null;
+            // 允许重新触发change
+            input.value = '';
+            input.click();
+            input.onchange = () => cb.call(input, input.files[0]);
+        }
+
+        function getProxy() {
+            let proxy = localStorage.getItem(lsKeyProxy);
+            if (!proxy) return null;
+            proxy = proxy.split(':');
+            return {
+                host: proxy[0],
+                port: proxy[1]
+            };
+        }
+
+        function storeList() {
+            localStorage.setItem(lsKeyVideoList, JSON.stringify(videoListCache));
+        }
+
+        function isUrl(url) {
+            // 考虑ip、域名，和带端口
+            return /^https?:\/\/([a-z\d-]+\.)+[a-z\d]+(:\d{2,5})?(\/.*)?/gi.test(url);
+        }
+        // ==================== 为注入js保留的未使用方法 ================
+
+        function fetchOtherOriginText(src, method, cb, userAgent, referer) {
+            // 经过app代理，让js可以fetch其他源的text
+
+            if (!/^https?:\/\/([a-z\d-]+\.)+[a-z]{2,}/gi.test(src)) {
+                errorToast('跨源请求的src非法：' + src);
+                return;
+            }
+
+            if ('function' !== typeof cb) {
+                errorToast('跨源请求的回调必须是函数:' + cb);
+                console.error(cb);
+                return;
+            }
+
+            userAgent = userAgent || navigator.userAgent;
+            referer = referer || src;
+
+            // head用于测试视频链接是否有效，而不用等待body；get 用于拉少量text，一般tv性能不强
+            if ('.get.head.'.indexOf('.' + method.toLowerCase() + '.') === -1) {
+                method = 'GET';
+            } else
+                method = method.toUpperCase();
+
+            fetchUrl({
+                action: 'fetchOtherOriginText',
+                method,
+                src,
+                userAgent,
+                referer
+            }, cb);
+        }
+    </script>
+</body>
+
+</html>

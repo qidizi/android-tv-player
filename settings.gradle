@@ -1,0 +1,23 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google() //{ url 'https://maven.aliyun.com/repository/google' }
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        // 更换url,解决国内下载问题。同步不及时，版本比较低，暂时不用阿里云镜像
+        google() // { url 'https://maven.aliyun.com/repository/google' }
+        mavenCentral()
+        maven {
+            //  maven{ url 'https://maven.aliyun.com/nexus/content/groups/public/'}
+            // GeckoView 仓库
+            url "https://maven.mozilla.org/maven2/"
+        }
+    }
+}
+rootProject.name = "tvPlayer"
+include ':app'

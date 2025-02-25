@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>默认首页</title>
+    <style>
+        html,body {
+            height: 100%;
+            width: 100%;
+            display: block;
+            margin: 0;
+            padding: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: black;
+            color: white;
+        }
+
+        #tvQr {
+            display: block;
+            width: 100vmin;
+            padding: 20vmin;
+            height: 100vmin;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 0 auto;
+            background-color: white;
+            position: fixed;
+        }
+    </style>
+</head>
+<body>
+<svg id="tvQr"></svg>
+<script src="qr.js"></script>
+<script>
+    function queryString(name) {
+        let qr = {};
+        location.hash.replace('#', '').split('&').forEach(kv => {
+            kv = kv.trim();
+            if ('' === kv) return;
+            kv = kv.split('=');
+            qr[decodeURIComponent(kv[0].trim())] = decodeURIComponent((kv[1] || '').trim());
+        });
+        return qr[name];
+    }
+
+    function showQr() {
+        // 只在首次启动时显示
+        const text = "http" + "://" + queryString('tvIp') + ":" + 8000;
+        new QRCode('tvQr', text);
+
+        // const tvQr = document.createElement('svg');
+        // tvQr.id = "tvQr";
+        // document.body.appendChild(tvQr);
+    }
+
+    +function () {
+        showQr();
+    }();
+</script>
+</body>
+</html>

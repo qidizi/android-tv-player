@@ -1,0 +1,208 @@
+// 配置参考 https://developer.android.google.cn/studio/build?hl=zh-cn
+plugins {
+    id 'com.android.application'
+}
+
+def javaNS = "qidizi.tv"
+
+
+android {
+    namespace javaNS
+    // appcompat_version = "1.5.1 要求32 或以上
+    compileSdk 35
+
+    defaultConfig {
+        group "qidizi"
+        // 如果这个不正确aide会提示R找不到。as正常不影响
+        applicationId javaNS
+        versionCode 1
+        versionName "1.0.0"
+        // https://developer.android.google.cn/studio/releases/platforms?hl=zh-cn
+        minSdk 24 // android 7.0
+        // 如果不提供这个，可能默认会比较低，如跟minSdk，会导致安装时，提示“此应用专为旧版android打造”
+        targetSdk 35
+    }
+
+
+    signingConfigs {
+        config {
+            //配置keystore文件的各种信息
+
+            // 可以使用以下方式,加载本工程目录之外的资源，防止git缓存
+            //Properties properties = new Properties()
+            // 请在本工程同级创建如下目录和编写下列文件名的properties文件，追加内容如下
+
+            //  KEY_PATH=签名key.keystore文件的绝对路径
+            //  KEY_PASS=key的密码
+            //  KEY_ALIAS_NAME=key的别名
+            //  KEY_ALIAS_PASS=别名的密码
+
+            //InputStream inputStream = file('/Users/qidizi/my.linux/apk-private-properties/private.properties').newDataInputStream()
+            //properties.load(inputStream)
+
+            //总是使用android 默认的keystore来,签名debug版本,暂不用提供release版本
+            storeFile file('../android_debug.keystore')
+            // 官方的默认密码
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // 禁用混淆
+            // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // 点击idea右侧的Gradle面板中的other/assembleRelease 即可自动签名apk
+            signingConfig signingConfigs.config
+            debuggable = true
+        }
+        debug {
+            signingConfig signingConfigs.config
+            debuggable = true
+        }
+    }
+
+    compileOptions {
+        lint {
+            // 有错误就立刻停止
+            abortOnError = true
+            // 不检查测试模块
+            ignoreTestSources = true
+            // html报告比较工整，但是要通过浏览器打开
+            htmlReport = false
+            // 文本报告会直接在控制台输出
+            textReport = true
+        }
+        // https://developer.android.com/reference/tools/gradle-api/7.2/com/android/build/api/dsl/CompileOptions#encoding()
+        encoding = "utf-8"
+
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    aaptOptions {
+        // 禁止压缩 .html 文件，因为在java中要读取文件大小，压缩后会导致大小异常，或是要先读取到内存才能知道
+        // 注意若之前未配置，则默认会压缩，重新配置就要修改一下html保存才会有效果，否则它会拿之前压缩好的缓存文件来使用
+        noCompress 'html'
+    }
+}
+
+/*
+https://stackoverflow.com/questions/53437653/android-studio-missing-strip-tool
+
+Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libfreebl3.so, libipcclientcerts.so, liblgpllibs.so, libmozavcodec.so, libmozavutil.so, libmozglue.so, libnss3.so, libnssckbi.so, libplugin-container.so, libsoftokn3.so, libxul.so.
+ */
+
+dependencies {
+    // https://developer.android.google.cn/jetpack/androidx/releases/appcompat?hl=zh-cn
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    // For loading and tinting drawables on older versions of the platform
+    implementation "androidx.appcompat:appcompat-resources:1.6.1"
+
+    implementation "com.google.zxing:core:3.5.3" // 绘制二维码
+
+    // https://github.com/androidx/media
+    // 1.5.1需要 api 35或以上
+    def media3_version = "1.5.1"
+    // For media playback using ExoPlayer
+    implementation "androidx.media3:media3-exoplayer:$media3_version"
+
+    // For DASH playback support with ExoPlayer
+    implementation "androidx.media3:media3-exoplayer-dash:$media3_version"
+    // For HLS playback support with ExoPlayer
+    implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
+    // For SmoothStreaming playback support with ExoPlayer
+    implementation "androidx.media3:media3-exoplayer-smoothstreaming:$media3_version"
+    // For RTSP playback support with ExoPlayer
+    implementation "androidx.media3:media3-exoplayer-rtsp:$media3_version"
+    // For MIDI playback support with ExoPlayer (see additional dependency requirements in
+
+    // For loading data using the OkHttp network stack
+    // 使用它来代替默认的http请求
+    implementation "androidx.media3:media3-datasource-okhttp:$media3_version"
+    // https://square.github.io/okhttp/
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // For loading data using librtmp
+    //implementation "androidx.media3:media3-datasource-rtmp:$media3_version"
+
+    // For building media playback UIs;通用ui，一般是手机
+    implementation "androidx.media3:media3-ui:$media3_version"
+    // For building media playback UIs for Android TV using the Jetpack Leanback library；电视（有遥控）专用ui
+    // implementation "androidx.media3:media3-ui-leanback:$media3_version"
+
+    // For exposing and controlling media sessions；用来与用户交互，如耳机事件、锁屏时后台播放、通知栏的控制面板
+    // implementation "androidx.media3:media3-session:$media3_version"
+
+    // Common functionality for loading data
+    implementation "androidx.media3:media3-datasource:$media3_version"
+    // Common functionality used across multiple media libraries
+    implementation "androidx.media3:media3-common:$media3_version"
+}
+
+defaultTasks("run")
+
+
+tasks.preBuild {
+    // 本任务必须保证在谁之后运行
+    mustRunAfter("myClean")
+}
+
+tasks.configureEach {
+    // 禁用一些不需要的任务
+    if (
+    // termux 上不支持这个任务
+            (name == "installRelease" && "/data/data/com.termux/files/home" == System.properties['user.home']) ||
+                    name == "preDebugBuild" ||
+                    name == "mergeReleaseNativeDebugMetadata" ||
+                    name == "compileReleaseShaders" ||
+                    name == "compileReleaseRenderscript" ||
+                    name == "compileReleaseAidl" ||
+                    name == "mergeReleaseNativeLibs" ||
+                    name == "stripReleaseDebugSymbols"
+    ) {
+        enabled = false
+    }
+}
+
+tasks.register("myClean", Delete) {
+    group = "qidizi"
+    doLast {
+        // 配置阶段不执行此block
+        println("删除 " + project.buildDir)
+        project.buildDir.delete()
+    }
+}
+
+// 从idea的gradle的qidizi/run执行
+// 或是直接gradle
+tasks.register("run") {
+    // 注意任务类型的写法，且只有这个类型才能使用command
+    // 归入这个菜单组
+    group = "qidizi"
+    mustRunAfter("installRelease")
+    println("run...")
+    // 配置阶段，刷新或是打开项目，或是任意任务执行它都会执行
+    dependsOn("myClean", "installRelease")
+    // 不能放到doLast，否则命令行变成null，会报错
+    //添加一个动作到task的最前面，表示task开始时调用
+    doFirst {
+        // 指定执行本任务前
+    }
+    //添加一个动作到task的最后面，表示任务结束时调用
+    doLast {
+        // 执行本任务后
+        println("执行完成")
+    }
+}
+
+tasks.register('termuxInstall') {
+    group = "qidizi"
+    doLast {
+        // 只有属于 termux 下才执行
+        if ("/data/data/com.termux/files/home" != System.properties['user.home']) return
+        println('termuxInstall')
+    }
+}
