@@ -22,6 +22,10 @@
             font-size: 16px;
         }
 
+        a {
+            text-decoration: none;
+        }
+
         html,
         body,
         form {
@@ -51,12 +55,14 @@
             bottom: 0;
             right: 0;
             background-color: rgba(51, 51, 51, 0.5);
-            padding: 0.5rem;
+            padding: 2px;
         }
 
         #panelBox a {
             display: inline-block;
-            margin: 0.1rem;
+            margin: 0.1rem 0.2rem;
+            font-style: bold;
+            font-size: 1.8rem;
         }
 
         form {
@@ -66,8 +72,15 @@
             left: 0;
             width: 100%;
             height: auto;
-            background-color: #333;
-            padding: 0.5rem;
+            background-color: rgba(51, 51, 51, 0.8);
+            padding: 2px;
+        }
+
+        form [type="button"],
+        form [type="submit"],
+        form [type="reset"] {
+            font-size: 1.2rem;
+            margin: 0.5rem;
         }
 
         label {
@@ -106,8 +119,11 @@
 
         .line {
             background-color: transparent;
+            border-width: 1px;
+            border-style: dotted;
             border-color: transparent;
             border-bottom-color: unset;
+            outline: none;
         }
 
         [name="closeFormBtn"] {
@@ -125,17 +141,23 @@
         }
 
         #videoListBox {
-            max-height: 10rem;
+            max-height: 15rem;
             overflow: auto;
+            word-break: break-all;
         }
 
         #videoListBox li {
-            line-height: 2rem;
+            margin-bottom: 1.5rem;
+
         }
 
         #videoListBox li a {
             display: inline-block;
             margin: 0 0.5rem;
+        }
+
+        #videoListBox li span {
+            padding-left: 2rem;
         }
 
         #playUrlForm.forPlay .nameLabel {
@@ -151,7 +173,9 @@
             display: none;
         }
 
-        fieldset.list {
+        fieldset {
+            margin: 1rem 0 0 0;
+            border-width: 1px 0 0 0;
             padding: 0;
         }
     </style>
@@ -217,8 +241,6 @@
             </label>
             <input class="btn" type="submit" name="submitBtn" value="立刻播放" />
             <input type="button" class="btn" name="closeFormBtn" value="关闭" />
-            <br>
-            <br>
             <fieldset class="list">
                 <legend>视频列表
                     <sup><a href="#" name="addListBtn">添加↑</a></sup>
@@ -286,7 +308,6 @@
         let listIdStart = 1;
 
         window.onload = () => {
-            successToast('有源易播--By qidizi。欢迎使用！');
             loadJs(localStorage.getItem(lsKeyJs));
             let list = localStorage.getItem(lsKeyVideoList);
             if (list) {
@@ -379,7 +400,10 @@
         }
 
         function closeFormBtnClk() {
-            hideDom(this.form);
+            let form = this.form;
+            // 设置了这个标志，就不要关闭
+            if (form.getAttribute('keep')) return;
+            hideDom(form);
         }
 
         function playBtnClk() {
@@ -518,7 +542,13 @@
             form.reset();
             let clsBtn = form.elements.closeFormBtn;
             form.className = 'forList';
-            clsBtn.onclick = () => playUrlFormSwitch(todoPlay);
+            clsBtn.onclick = e => {
+                playUrlFormSwitch(todoPlay);
+                // 避免触发 closeFormBtnClk,因为当前form要keep
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
             let value;
 
             switch (how) {
@@ -614,7 +644,7 @@
                 obj.u = videoUrl;
                 obj.n = videoName;
                 obj.p = useProxy;
-                document.querySelector(`#videoListBox li[i="${todo}"] a[name="playListBtn"]`).innerText = obj.n;
+                document.querySelector(`#videoListBox li[i="${todo}"] .videoName`).innerText = obj.n;
             }
 
             storeList();
@@ -683,11 +713,7 @@
             let ol = gid('videoListBox');
             let li = document.createElement('li');
             li.setAttribute('i', listId);
-            let a = document.createElement('a');
-            a.href = '#';
-            a.innerText = name;
-            a.name = 'playListBtn';
-            li.appendChild(a);
+            let a;
             a = document.createElement('a');
             a.href = '#';
             a.innerText = '删除';
@@ -697,6 +723,16 @@
             a.href = '#';
             a.innerText = '编辑';
             a.name = 'editListBtn';
+            li.appendChild(a);
+            a = document.createElement('a');
+            a.href = '#';
+            a.innerText = '播放';
+            a.name = 'playListBtn';
+            li.appendChild(a);
+            // 因为手机翻页时容易误点击导致开始播放冲掉正在电视中播放的视频，使用这种结构减少误操作
+            a = document.createElement('span');
+            a.className = "videoName";
+            a.innerText = name;
             li.appendChild(a);
             ol.appendChild(li);
         }

@@ -92,16 +92,17 @@ public class MainActivity extends Activity {
                 positionMs = exoPlayer.getCurrentPosition();
             }
 
-            if (times >= 5) {
+            if (times >= 15) {
+                // 太快，可能会导致如出错消息未看到就删除了，比如5
                 if (!toastMsg.isEmpty()) toastMsg.removeLast();
                 times = 0;
             }
-            // 如果速度太快会导致Shutting down VM，app闪退：FATAL EXCEPTION: main;已知同时开启4个页面自动onload刷新就会出现
+            // 如果速度太快会导致Shutting down VM，app闪退：FATAL EXCEPTION: main;已知同时开启4个页面自动on Load刷新就会出现
             // java.util.ConcurrentModificationException
-            // at java.util.LinkedList$ListItr.checkForComodification(LinkedList.java:966)
+            // at java.util.LinkedList$ListItr.checkForCoModification(LinkedList.java:966)
             // at java.util.LinkedList$ListItr.next(LinkedList.java:888)
-            // at qidizi.tv.MainActivity$1$$ExternalSyntheticBackport0.m(D8$$SyntheticClass:0)
-            // at qidizi.tv.MainActivity$1.run(MainActivity.java:128)
+            // at **.tv.MainActivity$1$$ExternalSyntheticBackport0.m(D8$$SyntheticClass:0)
+            // at **.tv.MainActivity$1.run(MainActivity.java:128)
             // 消息可能会比较多，显示只显示前面一部分不超过大部分设备屏幕即可
             String text = "";
             if (!toastMsg.isEmpty()) {
@@ -112,6 +113,7 @@ public class MainActivity extends Activity {
             toastView.setText(text);
         }
     };
+    final private boolean debug = false;
 
     @SuppressLint("DefaultLocale")
     @Override
@@ -164,32 +166,29 @@ public class MainActivity extends Activity {
         // 自定义播放界面
         // https://developer.android.google.cn/media/media3/ui/customization?hl=zh-cn
         exoPlayer.addListener(new Player.Listener() {
-            @SuppressLint("DefaultLocale")
-            @Override
-            public void onEvents(@NonNull Player player, @NonNull Player.Events events) {
-                Player.Listener.super.onEvents(player, events);
+            // 用于了解player事件发生顺序及包含信息，正式时不需要打开
+            private void debugEvents(Player.Events events) {
                 StringBuilder en = new StringBuilder();
 
                 for (int i = 0; i < events.size(); i++) {
                     en.append('\n').append(getPlayerEventDesc(events.get(i)));
                 }
                 consoleDebug("onEvents:%s", en.toString());
+            }
+
+            @SuppressLint("DefaultLocale")
+            @Override
+            public void onEvents(@NonNull Player player, @NonNull Player.Events events) {
+                Player.Listener.super.onEvents(player, events);
+                if (debug) debugEvents(events);
 
                 if (events.contains(Player.EVENT_PLAYER_ERROR)) {
                     PlaybackException error = player.getPlayerError();
                     if (null != error) {
                         // 注意考虑清0时机
                         playerErrorCode = error.errorCode;
-                        String playUrl = "视频链接";
-                        MediaItem mediaItem = exoPlayer.getCurrentMediaItem();
-                        if (null != mediaItem) {
-                            MediaItem.LocalConfiguration localConfiguration = mediaItem.localConfiguration;
-                            if (localConfiguration != null) {
-                                // 仅当媒体项是通过 MediaItem.fromUri() 或类似方式加载的远程资源时，uri 才会有效
-                                playUrl += "local:" + localConfiguration.uri;
-                            }
-                        }
-                        toast(String.format("无法播放%s：%s(%d) %s", playUrl, error.getMessage(), error.errorCode,
+                        String videoUrl = getVideoUrl();
+                        toast(String.format("无法播放%s：%s(%d) %s", videoUrl, error.getMessage(), error.errorCode,
                                 Objects.requireNonNull(error.getCause()).getMessage()));
                     }
                 }
@@ -237,6 +236,20 @@ public class MainActivity extends Activity {
             }
         });
         ((PlayerView) findViewById(R.id.videoView)).setPlayer(exoPlayer);
+    }
+
+    @NonNull
+    private String getVideoUrl() {
+        String videoUrl = "视频链接";
+        MediaItem mediaItem = exoPlayer.getCurrentMediaItem();
+        if (null != mediaItem) {
+            MediaItem.LocalConfiguration localConfiguration = mediaItem.localConfiguration;
+            if (localConfiguration != null) {
+                // 仅当媒体项是通过 MediaItem.fromUri() 或类似方式加载的远程资源时，uri 才会有效
+                videoUrl += "local:" + localConfiguration.uri;
+            }
+        }
+        return videoUrl;
     }
 
     @SuppressLint("DefaultLocale")
@@ -353,8 +366,6 @@ public class MainActivity extends Activity {
 
             socketDebug("203", si, client);
             String str = new String(buffer, 0, bytesRead);
-            // noinspection ReassignedVariable
-            buffer = null;
             socketDebug(String.format("请求内容(%d/%d bytes)[start]%s[end]\n", bytesRead, maxGet, str), si, client);
 
             if (!Pattern.matches("^GET [^ ]+ HTTP/\\S+[\r\n][\\s\\S]*$", str)) {
@@ -428,25 +439,10 @@ public class MainActivity extends Activity {
             socketDebug("209", si, client);
         } catch (Exception e) {
             debugException(e, si + "-解析http入请求时");
-            // 如果联网权限未得到，这里会报
-            // android.system.ErrnoException: accept failed: EACCES (Permission denied)
+            // 如果联网权限未得到，这里会报  （避免studio语法提示）
+            // android.system.ErrnoException: accept failed: E A C C E S (Permission denied)
             toast("无法处理你请求:" + e.getMessage());
         }
-    }
-
-    private void socketDebug(String title, int si, Socket client) {
-        // 使用一个不存在值，暂时禁用调试
-        if (si > -1) return;
-        consoleDebug(
-                "%d-%s: 端口%d isClosed:%s isConnected:%s isInputShutdown:%s isOutputShutdown:%s",
-                si,
-                title,
-                client.getPort(),
-                client.isClosed(),
-                client.isConnected(),
-                client.isInputShutdown(),
-                client.isOutputShutdown()
-        );
     }
 
     private boolean haveNet() {
@@ -530,9 +526,9 @@ public class MainActivity extends Activity {
         return String.format("%s&devName=%s&devInfo=%s&videoUrl=%s&durationMs=%d&positionMs=%d&playErrorCode=%d",
                 encodeOk("播放器信息"),
                 urlEncode(devName),
-                urlEncode(String.format("%s %s density:%.2f densityDpi:%d (%dx%d) Android %s %s %s textSize:%.2fsp qrSize:%d",
+                urlEncode(String.format("%s %s density:%.2f densityDpi:%d (%dx%d) Android %s %s %s textSize:%.2fsp qrSize:%d\n\n欢迎使用%s！",
                         Build.BRAND, devName, density, densityDpi, screenWidth, screenHeight, Build.VERSION.RELEASE,
-                        Build.MANUFACTURER, Build.PRODUCT, baseTextSizeSp, qrSize)),
+                        Build.MANUFACTURER, Build.PRODUCT, baseTextSizeSp, qrSize, getString(R.string.app_name))),
                 urlEncode(videoUrl),
                 durationMs,
                 positionMs,
@@ -540,9 +536,7 @@ public class MainActivity extends Activity {
     }
 
     private void seek(int seekMinutes) {
-        runOnUiThread(() -> {
-            exoPlayer.seekTo((long) seekMinutes * 60 * 1000);
-        });
+        runOnUiThread(() -> exoPlayer.seekTo((long) seekMinutes * 60 * 1000));
     }
 
     @OptIn(markerClass = UnstableApi.class)
@@ -792,7 +786,7 @@ public class MainActivity extends Activity {
             }
 
             qrCodeImageView.setImageBitmap(bitmap);
-            toast("微信/浏览器扫码操作");
+            toast("欢迎使用" + getString(R.string.app_name) + "！\n请用微信/浏览器扫码播放视频/控制");
         } catch (Exception e) {
             toast("显示二维码失败：" + e.getMessage());
             debugException(e, "绘制二维码时");
@@ -851,13 +845,6 @@ public class MainActivity extends Activity {
         }
 
         secHandler.removeCallbacks(secRunnable);
-    }
-
-    /**
-     * @noinspection SameParameterValue
-     */
-    private void consoleDebug(String format, Object... vars) {
-        Log.e("qDebug", String.format(format, vars));
     }
 
     private String getPlayerEventDesc(int event) {
@@ -928,8 +915,31 @@ public class MainActivity extends Activity {
         return "UNKNOWN-" + event;
     }
 
+    /**
+     * @noinspection SameParameterValue
+     */
+    private void consoleDebug(String format, Object... vars) {
+        if (!debug) return;
+        Log.e("qDebug", String.format(format, vars));
+    }
+
+    private void socketDebug(String title, int si, Socket client) {
+        if (!debug) return;
+        // 使用一个不存在值，暂时禁用调试
+        if (si > -1) return;
+        consoleDebug(
+                "%d-%s: 端口%d isClosed:%s isConnected:%s isInputShutdown:%s isOutputShutdown:%s",
+                si,
+                title,
+                client.getPort(),
+                client.isClosed(),
+                client.isConnected(),
+                client.isInputShutdown(),
+                client.isOutputShutdown()
+        );
+    }
+
     private void debugException(Exception e, String from) {
-        System.out.println("执行如下操作时报错了：" + from);
-        e.printStackTrace();
+        Log.e("qDebug", "执行如下操作时报错了：" + from, e);
     }
 }

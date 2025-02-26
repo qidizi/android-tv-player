@@ -25,7 +25,7 @@ android 7.0 或以上
   
 ## 效果图        
 
-<img src="screenshot.jpg" alt="效果图" height="500" />
+<img src="screenshot.jpg" alt="页面效果图" height="400" />  
 
 ## 计划  
 

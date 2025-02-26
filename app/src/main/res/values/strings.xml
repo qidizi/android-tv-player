@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">tv播放器</string>
+    <string name="app_name">有源易播</string>
     <string name="qrCodeDesc">二维码显示位置</string>
 </resources>
