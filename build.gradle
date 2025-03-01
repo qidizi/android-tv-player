@@ -5,7 +5,7 @@
 // 它的前面只能 放指定的block
 plugins {
     // https://developer.android.google.cn/build/releases/gradle-plugin?hl=zh-cn#updating-gradle
-    id 'com.android.application' version '8.8.1' apply false
+    id 'com.android.application' version '8.8.2' apply false
     // https://developer.android.google.cn/studio/projects/android-library?hl=zh-cn#groovy
     // id 'com.android.library' version '8.6.0' apply false
 }

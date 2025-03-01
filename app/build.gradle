@@ -18,7 +18,7 @@ android {
         versionCode 1
         versionName "1.0.0"
         // https://developer.android.google.cn/studio/releases/platforms?hl=zh-cn
-        minSdk 24 // android 7.0
+        minSdk 21 // 14-android 4.0 21-android 5.0 androidx.media3:media3-ui:1.5.1要求api21
         // 如果不提供这个，可能默认会比较低，如跟minSdk，会导致安装时，提示“此应用专为旧版android打造”
         targetSdk 35
     }
@@ -52,31 +52,30 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            // 禁用混淆
             // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             // 点击idea右侧的Gradle面板中的other/assembleRelease 即可自动签名apk
             signingConfig signingConfigs.config
-            debuggable = true
+            debuggable  true
         }
         debug {
             signingConfig signingConfigs.config
-            debuggable = true
+            debuggable  true
         }
     }
 
     compileOptions {
         lint {
             // 有错误就立刻停止
-            abortOnError = true
+            abortOnError  true
             // 不检查测试模块
-            ignoreTestSources = true
+            ignoreTestSources  true
             // html报告比较工整，但是要通过浏览器打开
-            htmlReport = false
+            htmlReport false
             // 文本报告会直接在控制台输出
-            textReport = true
+            textReport  true
         }
         // https://developer.android.com/reference/tools/gradle-api/7.2/com/android/build/api/dsl/CompileOptions#encoding()
-        encoding = "utf-8"
+        encoding "utf-8"
 
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
@@ -101,7 +100,8 @@ dependencies {
     // For loading and tinting drawables on older versions of the platform
     implementation "androidx.appcompat:appcompat-resources:1.6.1"
 
-    implementation "com.google.zxing:core:3.5.3" // 绘制二维码
+    implementation "com.google.zxing:core:3.5.3"
+    implementation 'com.google.firebase:firebase-crashlytics-buildtools:3.0.3'// 绘制二维码
 
     // https://github.com/androidx/media
     // 1.5.1需要 api 35或以上
@@ -120,12 +120,12 @@ dependencies {
     // For MIDI playback support with ExoPlayer (see additional dependency requirements in
 
     // For loading data using the OkHttp network stack
-    // 使用它来代替默认的http请求
+    // 使用它来代替默认的http请求;它要求 api 21+ 即安卓5.0
     implementation "androidx.media3:media3-datasource-okhttp:$media3_version"
     // https://square.github.io/okhttp/
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // For loading data using librtmp
+    // For loading data using l i b r t m p
     //implementation "androidx.media3:media3-datasource-rtmp:$media3_version"
 
     // For building media playback UIs;通用ui，一般是手机
@@ -171,8 +171,8 @@ tasks.register("myClean", Delete) {
     group = "qidizi"
     doLast {
         // 配置阶段不执行此block
-        println("删除 " + project.buildDir)
-        project.buildDir.delete()
+        println("删除 " + project.layout.buildDirectory)
+       file(project.layout.buildDirectory).delete()
     }
 }
 
@@ -181,7 +181,7 @@ tasks.register("myClean", Delete) {
 tasks.register("run") {
     // 注意任务类型的写法，且只有这个类型才能使用command
     // 归入这个菜单组
-    group = "qidizi"
+    group  "qidizi"
     mustRunAfter("installRelease")
     println("run...")
     // 配置阶段，刷新或是打开项目，或是任意任务执行它都会执行

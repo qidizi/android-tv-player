@@ -264,7 +264,8 @@
 
             <label>
                 <strong class="inputTitle"><span class="required">*</span>注入js的src</strong>
-                <input type="url" class="line" name="jsSrc" id="jsSrc" required="required" onfocus="this.select();" />
+                <input type="url" class="line" name="jsSrc" id="jsSrc" placeholder="注入或留空清除"
+                    onfocus="this.select();" />
             </label>
             <input class="btn" type="submit" value="确认" />
             <button type="button" class="btn" name="closeFormBtn">关闭</button>
@@ -325,8 +326,8 @@
             let proxy = getProxy();
             if (proxy) {
                 let form = gid('setProxyForm');
-                form.elements.httpProxyHost.value = proxy.host;
-                form.elements.httpProxyPort.value = proxy.port;
+                form.elements.httpProxyHost.value = proxy.host || '';
+                form.elements.httpProxyPort.value = proxy.port || 0;
             }
 
             // 若注入了js，外置初始方法优先。
@@ -530,11 +531,11 @@
         }
 
         function tryPlayPause(isPlay) {
-            fetchUrl({ action: 'tryPlayPause', isPlay }, url => successToast(getQueryString(url, 'ok', '无返回信息')));
+            fetchUrl({ action: isPlay ? 'play' : 'pause' }, text => successToast(text));
         }
 
         function volumeCtrl(how) {
-            fetchUrl({ action: 'volumeCtrl', how }, url => successToast(getQueryString(url, 'ok', '无返回信息')));
+            fetchUrl({ action: 'volumeCtrl', how }, text => successToast(text));
         }
 
         function playUrlFormSwitch(how) {
@@ -605,11 +606,9 @@
                     port = proxy.port;
                 }
 
-                elements.httpProxyHost.value = host;
-                elements.httpProxyPort.value = port;
-                fetchUrl(elements, url => {
-                    successToast(getQueryString(url, 'ok', '无返回信息'));
-                });
+                elements.httpProxyHost.value = host || '';
+                elements.httpProxyPort.value = port || 0;
+                fetchUrl(elements, text => successToast(text));
                 return;
             }
 
@@ -661,8 +660,8 @@
             let elements = this.elements;
             elements.seekMinutes.value = Math.max(0, +elements.seekMinutes.value);
 
-            fetchUrl(elements, url => {
-                successToast(getQueryString(url, 'ok', '无返回信息'));
+            fetchUrl(elements, text => {
+                successToast(text);
                 hideDom(this);
             });
         }
@@ -670,6 +669,23 @@
         function insertJsFormSubmit() {
             let elements = this.elements;
             let src = elements.jsSrc.value.trim();
+
+            // 留空表示清除
+            if ('' === src) {
+                let src = localStorage.getItem(lsKeyJs);
+
+                if (!src) {
+                    errorToast('未注入js，你可以填写一个url来注入');
+                    return;
+                }
+
+                localStorage.removeItem(lsKeyJs);
+                successToast('注入的js已清除，浏览器即可重新加载页面');
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+                return;
+            }
 
             if (!isUrl(src)) {
                 errorToast('js src非法：' + src);
@@ -738,9 +754,7 @@
         }
 
         function getInfo(cb) {
-            fetchUrl({
-                action: 'getInfo'
-            }, cb);
+            fetchUrl({ action: 'getInfo' }, cb);
         }
 
         function getQueryString(qs, name, def) {
@@ -770,10 +784,17 @@
                 cache: 'no-cache',
                 method: 'GET'
             }).then(async res => {
-                let url = await res.text();
-                // 统一处理请求失败，不转给后层处理
-                let fatal = getQueryString(url, 'fatal', '');
-                fatal ? errorToast("请求出错：" + fatal) : ok(new URLSearchParams(url));
+                let text = await res.text();
+
+                // 成功 200-209；失败 500
+                if (!res.ok) {
+                    // 统一处理请求失败，不转给后层处理
+                    errorToast(`${get.action} 请求失败:[${res.status}]${text} ${url}`);
+                    console.error(res);
+                    return;
+                }
+
+                ok('OK_queryString' === res.statusText ? new URLSearchParams(text) : text);
             }).catch(err => { errorToast(get.action + '请求失败:' + err + '; ' + url); console.error(err); });
         }
 
@@ -856,11 +877,16 @@
         }
         // ==================== 为注入js保留的未使用方法 ================
 
-        function fetchOtherOriginText(src, method, cb, userAgent, referer) {
-            // 经过app代理，让js可以fetch其他源的text
+        function fetchOtherOrigin(url, method, cb, userAgent, referer, httpProxyHost, httpProxyPort, pageCharset) {
+            // 经过app代理，让js可以fetch其他源http(s)的text;其它实时视频或ftp之类暂时不考虑
 
-            if (!/^https?:\/\/([a-z\d-]+\.)+[a-z]{2,}/gi.test(src)) {
-                errorToast('跨源请求的src非法：' + src);
+            if (!/^https?:\/\//i.test(url)) {
+                errorToast('跨源请求不支持该协议（支持http及https）：' + url);
+                return;
+            }
+
+            if (!/^https?:\/\/([a-z\d-]+\.)+[a-z]{2,}/gi.test(url)) {
+                errorToast('跨源请求的链接非法：' + url);
                 return;
             }
 
@@ -871,7 +897,10 @@
             }
 
             userAgent = userAgent || navigator.userAgent;
-            referer = referer || src;
+            httpProxyHost = httpProxyHost || '';
+            httpProxyPort = httpProxyPort || 0;
+            referer = referer || url;
+            pageCharset = pageCharset || 'UTF-8';// GBK,UTF-8等
 
             // head用于测试视频链接是否有效，而不用等待body；get 用于拉少量text，一般tv性能不强
             if ('.get.head.'.indexOf('.' + method.toLowerCase() + '.') === -1) {
@@ -880,11 +909,14 @@
                 method = method.toUpperCase();
 
             fetchUrl({
-                action: 'fetchOtherOriginText',
+                action: 'fetchOtherOrigin',
                 method,
-                src,
+                url,
                 userAgent,
-                referer
+                referer,
+                httpProxyHost,
+                httpProxyPort,
+                pageCharset
             }, cb);
         }
     </script>

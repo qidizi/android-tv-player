@@ -9,3 +9,4 @@ app/debug/
 app/release/
 build/
 .vscode/
+_test.*
