@@ -13,6 +13,7 @@
 7. 配置导入/导出
 8. 遥控器：确认为播放/暂停、左右为后退/快进
 9. 支持外置html
+10. 安装apk功能
 
 ## 使用方法   
 1. [从releases下载最新版本](https://github.com/qidizi/android-tv-player/releases);    
