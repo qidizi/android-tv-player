@@ -213,6 +213,12 @@ public class TvServer {
                     text = "尝试跳转到" + ms + "分钟";
                     responseText(client, text, tip);
                     return;
+                case "installer":
+                    String apkUrl = uri.getQueryParameter("apkUrl");
+                    tip = text = "尝试下载完全后安装apk：" + apkUrl;
+                    new Installer(activity, apkUrl);
+                    responseText(client, text, tip);
+                    return;
                 case "getInfo":
                     text = getInfo();
                     tip = "电视信息已返回";

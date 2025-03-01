@@ -209,6 +209,7 @@
             <a href="#" name="insertJsBtn" title="以url方式注入远程js文件,如可通过app跨域请求iptv url扩展功能">注入</a>
             <a href="#" name="exportBtn" title="全部配置下载保存为json文件">导出</a>
             <a href="#" name="importBtn" title="从json文件导入全部配置">导入</a>
+            <a href="#" name="installBtn" title="输入apk网址，电视下载并安装">安装</a>
         </div>
 
         <form id="playUrlForm" class="forPlay" onsubmit="return false">
@@ -264,8 +265,7 @@
 
             <label>
                 <strong class="inputTitle"><span class="required">*</span>注入js的src</strong>
-                <input type="url" class="line" name="jsSrc" id="jsSrc" placeholder="注入或留空清除"
-                    onfocus="this.select();" />
+                <input type="url" class="line" name="jsSrc" id="jsSrc" placeholder="注入或留空清除" onfocus="this.select();" />
             </label>
             <input class="btn" type="submit" value="确认" />
             <button type="button" class="btn" name="closeFormBtn">关闭</button>
@@ -280,6 +280,16 @@
                 <strong class="inputTitle">http代理端口</strong>
                 <input type="number" max="65535" min="1025" class="line" name="httpProxyPort" onfocus="this.select();"
                     placeholder="1024&lt;端口&lt;=65535" />
+            </label>
+            <button class="btn" type="submit">确认</button>
+            <button type="button" class="btn" name="closeFormBtn">关闭</button>
+        </form>
+
+        <form id="installForm" onsubmit="return false">
+            <input type="hidden" name="action" value="installer" />
+            <label>
+                <strong class="inputTitle"><span class="required">*</span>apk网址</strong>
+                <input type="url" class="line" name="apkUrl" required="required" onfocus="this.select();" />
             </label>
             <button class="btn" type="submit">确认</button>
             <button type="button" class="btn" name="closeFormBtn">关闭</button>
@@ -530,6 +540,10 @@
             });
         }
 
+        function installBtnClk() {
+            showForm(this.name, true);
+        }
+
         function tryPlayPause(isPlay) {
             fetchUrl({ action: isPlay ? 'play' : 'pause' }, text => successToast(text));
         }
@@ -720,6 +734,21 @@
             localStorage.setItem(lsKeyProxy, host + ':' + port);
             hideDom(this);
             successToast('代理已保存');
+        }
+
+        function installFormSubmit() {
+            let elements = this.elements;
+            let apkUrl = elements.apkUrl.value = elements.apkUrl.value.trim();
+
+            if (!isUrl(apkUrl)) {
+                errorToast('apk网址非法：' + apkUrl);
+                return;
+            }
+
+            fetchUrl(elements, text => {
+                successToast(text);
+                hideDom(this);
+            });
         }
 
         function pushList(videoUrl, name, useProxy) {
