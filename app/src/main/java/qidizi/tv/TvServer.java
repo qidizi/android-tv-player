@@ -13,6 +13,8 @@ import java.net.Socket;
 import java.util.Locale;
 
 public class TvServer {
+    // 选择少人用的高位端口
+    protected final int server_port = 44444;
     private ServerSocket server;
     private final MainActivity activity;
     private final String byteCharset = "UTF-8";
@@ -28,9 +30,7 @@ public class TvServer {
 
     private void create() {
         new Thread(() -> {
-            // 同时只支持1个连接
-            int connectQueue = 1;
-            try (ServerSocket tryServer = new ServerSocket(StaticData.server_port, connectQueue)) {
+            try (ServerSocket tryServer = new ServerSocket(server_port)) {
                 // 使用端口转发功能,把虚拟机avd端口转发到开发机的8080上,就可以使用 http://127.0.0.1:8080 来访问
                 // ~/android/platform-tools/adb forward tcp:8080 tcp:8080
                 // 同时只多个请求
@@ -39,89 +39,41 @@ public class TvServer {
                 server.setReuseAddress(true);
 
                 if (!server.isBound()) {
-                    throw new Exception("tv http服务无法绑定监听端口： " + StaticData.server_port);
+                    throw new Exception("tv http服务无法绑定监听端口： " + server_port);
                 }
 
+                activity.tvToast.push("tv http服务启动成功: " + activity.tvIp + ":" + server_port);
+                Util.consoleDebug("tv http服务启动成功: %s:%d", activity.tvIp, server_port);
                 int si = 0;
-                activity.tvToast.push("tv http服务启动成功: " + StaticData.tvIp + ":" + StaticData.server_port);
-                Util.consoleDebug("tv http服务启动成功: %s:%d", StaticData.tvIp, StaticData.server_port);
-                // 要加入null判断，防止异常后，http变成null
                 // noinspection
                 while (null != server && !server.isClosed()) {
-                    // 若有问题，使用类似下方命令来测试
-                    /*
-
-                     echo -e "\n\n";echo -n "[";echo -e "GET /?action=getInfo HTTP/1.1\r\n" | nc 10.10.10.3 8888 > _test.txt;od -c _test.txt;echo -e "\n\n\n"
-
-                     */
-                    try (
-                            // 阻塞直到有新的客户端连接;不要设置server读的超时，否则不会block 而是 rwTimeoutMs 后就 Poll timed out
-                            Socket clientSocket = server.accept();
-                            InputStream is = clientSocket.getInputStream();
-                            // 变量名用 ignoreAutoCloseOs 防止ide提示未使用
-                            OutputStream os = clientSocket.getOutputStream()
-                            // 关闭顺序为后到前
-                    ) {
-                        si++;
-
-                        // 局域网不用太久
-                        int rwTimeoutMs = 3000;
-                        clientSocket.setSoTimeout(rwTimeoutMs);
-                        // 经过测试
-                        // 禁用 Nagle算法，立即发送数据，否则有很大概率os.write()只有首次调用发出去，socket就关闭，
-                        // 后面全未发，另外开启后，可以自己合并内容一次write
-                        // 具体见ai
-                        // clientSocket.setTcpNoDelay(true);
-                        // 最大支持1MB 的请求，应该够用了
-                        // 缓冲与读取都要比最大支持大1位，方便下面判断是否超出
-                        int maxGet = 1024 * 1024;
-                        int overMax = maxGet + 1;
-                        byte[] buffer = new byte[overMax];
-                        int totalRead = 0;
-                        int byteRead;
-                        boolean foundRN = false;
-                        // 注意只取 报文首行，如是 GET/HEAD/POST /?a=b HTTP/1.0\r\n;
-                        // 再取/?a=b这段，后面内容全部不要
-                        // 没有body的请求，如get/head是没有Content-Length，所以，无法判断收到的字符长度来结尾，而需要读到\r\n即可
-                        // 自定义的server，qs这段其实可以无上限
-                        while (totalRead < overMax && (byteRead = is.read()) != -1) {
-                            // GET /?a=b HTTP/1.0\r\n 处理换行符
-                            if ('\r' == byteRead || '\n' == byteRead) {
-                                // 取的内容不要 \r\n
-                                foundRN = true;
-                                break;
+                    try {
+                        final int fsi = ++si;
+                        // 因为处理在另外个线程中处理，不能用try关闭
+                        // 阻塞直到有新的客户端连接;不要设置server读的超时，否则不会block 而是 rwTimeoutMs 后就 Poll timed out
+                        Socket clientSocket = server.accept();
+                        // 处理在另外个线程中处理
+                        new Thread(() -> {
+                            try (
+                                    // 关闭顺序为后到前
+                                    // 变量名用 ignoreAutoCloseOs 防止ide提示未使用
+                                    clientSocket;
+                                    OutputStream ignoreAutoCloseOs = clientSocket.getOutputStream();
+                                    InputStream ignoreAutoCloseIs = clientSocket.getInputStream()
+                            ) {
+                                socketAccept(clientSocket, fsi);
+                                debugSocket(clientSocket, fsi + ". clientTry最后");
+                            } catch (Exception e) {
+                                Util.debugException(e, "tv http服务处理请求异常");
+                                activity.tvToast.push("tv http服务处理请求异常：" + Util.getExceptionMessage(e));
                             }
-
-                            buffer[totalRead++] = (byte) byteRead;
-                        }
-
-                        clientSocket.shutdownInput();
-
-                        if (totalRead < 1) {
-                            // 没内容是0
-                            // 结尾了是-1;比如请求未结束，浏览器就刷新重新请求，浏览器就会终止上个请求，所以是-1
-                            throw new IOException("出错了！你提交的请求http报文长度为:" + totalRead);
-                        } else if (totalRead > maxGet) {
-                            // 超过了最大长度
-                            throw new IOException("出错了！请求时提交超过 " + maxGet + " bytes");
-                        }
-
-                        String str = getString(buffer, totalRead, foundRN);
-                        Uri uri = Uri.parse(str);
-                        final String action = uri.getQueryParameter("action");
-
-                        if (null == action || action.isEmpty()) {
-                            emptyAction(clientSocket);
-                        } else {
-                            actionRun(clientSocket, action, uri);
-                        }
-
-                        //debugSocket(clientSocket, "clientTry最后");
+                        }).start();
                     } catch (Exception e) {
-                        Util.debugException(e, si + "-解析tv http请求时");
+                        // 单次请求异常避免服务退出
                         // 如果联网权限未得到，这里会报  （避免studio语法提示）
                         // android.system.ErrnoException: accept failed: E A C C E S (Permission denied)
-                        activity.tvToast.push("tv http服务无法处理请求: " + Util.getExceptionMessage(e));
+                        Util.debugException(e, "请求" + si + "tv http服务处理请求异常");
+                        activity.tvToast.push("tv http服务处理第" + si + "个请求异常：" + Util.getExceptionMessage(e));
                     }
                 }
                 // 比如有异常，提示用户
@@ -133,29 +85,72 @@ public class TvServer {
         }).start();
     }
 
-    private String getString(byte[] buffer, int totalRead, boolean foundRN) throws IOException {
-        String str = new String(buffer, 0, totalRead, byteCharset);
+    private void socketAccept(Socket clientSocket, int fsi) throws Exception {
+        InputStream is = clientSocket.getInputStream();
+        // 局域网不用太久
+        int rwTimeoutMs = 3000;
+        clientSocket.setSoTimeout(rwTimeoutMs);
+        int maxGet = 1024 * 4;
+        byte[] buffer = new byte[maxGet];
+        int totalRead = 0;
+        int ch;
+        // 注意只取 报文首行，如是 GET/HEAD/POST /?a=b HTTP/1.0\r\n;
+        // 再取/?a=b这段，后面内容全部不要
+        // 没有body的请求，如get/head是没有Content-Length，所以，无法判断收到的字符长度来结尾，而需要读到\r\n即可
+        // 自定义的server，qs这段其实可以无上限
+        boolean foundR = false;
 
-        if (!foundRN) {
-            throw new IOException("未收到http报文首行结束符 \\r\\n !?");
+        try {
+            while ((ch = is.read()) != -1) {
+                if ('\r' == ch) {
+                    foundR = true;
+                    break;
+                }
+
+                if (totalRead + 1 > maxGet) {
+                    throw new IOException("出错了！请求" + fsi + "提交超过 " + maxGet + " bytes");
+                }
+
+                buffer[totalRead++] = (byte) ch;
+            }
+        } finally {
+            clientSocket.shutdownInput();
         }
 
+        if (totalRead < 1) {
+            // 没内容是0
+            // 结尾了是-1;比如请求未结束，浏览器就刷新重新请求，浏览器就会终止上个请求，所以是-1
+            throw new IOException("出错了！请求" + fsi + "提交的http报文长度为:" + totalRead);
+        }
+
+        if (!foundR) {
+            throw new IOException("请求" + fsi + "http报文没有 \\r ?");
+        }
+
+        String body = new String(buffer, 0, totalRead, byteCharset);
         // GET/HEAD/POST/... /?xx=yy HTTP/1.x
-        if (!str.matches("^[A-Z]+ [^ ]+ HTTP/\\d+.+$")) {
+        if (!body.matches("^[A-Z]+ [^ ]+ HTTP/\\d+.+$")) {
             // sub超过实际报错而不是取实际
-            throw new IOException("控制请求不是http协议：" + str.substring(0, Math.min(str.length(), 100)) + "...");
+            throw new IOException("请求" + fsi + "不是http协议：" + body.substring(0, Math.min(body.length(), 100)) + "...");
         }
 
         // GET/HEAD/POST /a/b/c.html?a=b HTTP/1.0
-        str = str.split(" ", 3)[1];
-        return str;
+        body = body.split(" ", 3)[1];
+        Uri uri = Uri.parse(body);
+        final String action = uri.getQueryParameter("action");
+
+        if (null == action || action.isEmpty()) {
+            emptyAction(clientSocket);
+        } else {
+            actionRun(clientSocket, action, uri);
+        }
     }
 
     private void emptyAction(Socket clientSocket) throws Exception {
         // 不是action指令状态，无条件返回html内容
         try (
                 InputStream htmlIs = activity.getResources().openRawResource(R.raw.index);
-                ByteArrayOutputStream baOs = new ByteArrayOutputStream();
+                ByteArrayOutputStream baOs = new ByteArrayOutputStream()
         ) {
             int bodyLen = 0;
             byte[] buffer = new byte[1024];
@@ -215,8 +210,8 @@ public class TvServer {
                     return;
                 case "installer":
                     String apkUrl = uri.getQueryParameter("apkUrl");
-                    tip = text = "尝试下载完全后安装apk：" + apkUrl;
-                    new Installer(activity, apkUrl);
+                    tip = text = "尝试下载完后安装apk：" + apkUrl;
+                    new Installer(activity, apkUrl, uri.getQueryParameter("userAgent"));
                     responseText(client, text, tip);
                     return;
                 case "getInfo":
@@ -267,11 +262,11 @@ public class TvServer {
                 Util.urlEncode(devName),
                 Util.urlEncode(String.format(Locale.US, "%s %s density:%.2f densityDpi:%d (%dx%d) Android %s %s %s textSize:%.2fsp qrSize:%d\n\n欢迎使用%s！",
                         Build.BRAND, devName, density, densityDpi, screenWidth, screenHeight, Build.VERSION.RELEASE,
-                        Build.MANUFACTURER, Build.PRODUCT, StaticData.baseTextSizeSp, StaticData.qrSize, activity.getString(R.string.app_name))),
-                Util.urlEncode(StaticData.videoUrl),
-                StaticData.durationMs,
-                StaticData.positionMs,
-                StaticData.playerErrorCode);
+                        Build.MANUFACTURER, Build.PRODUCT, activity.baseTextSizeSp, activity.qr.qrSize, activity.getString(R.string.app_name))),
+                Util.urlEncode(activity.tvPlayer.videoUrl),
+                activity.tvPlayer.durationMs,
+                activity.tvPlayer.positionMs,
+                activity.tvPlayer.playerErrorCode);
     }
 
     private void responseFail(Socket client, String text, String tip) throws Exception {
@@ -322,17 +317,15 @@ public class TvServer {
                 int sendThisTime = Math.min(bodyLength - send, maxBufferSize);
                 os.write(body, send, sendThisTime);
                 send += sendThisTime;
-                Thread.sleep(50);
                 os.flush();
             }
         }
 
-        if (!clientSocket.isOutputShutdown())
+        if (!clientSocket.isClosed() && !clientSocket.isOutputShutdown())
             clientSocket.shutdownOutput();
+        // todo 临时暂时能解决一定义概率 socket未发完write的内容，就close的情况
+        Thread.sleep(50);
         activity.tvToast.push(tip);
-
-        // todo 先暂停x，再关闭好像能解决缓冲内容发送未完就关闭socket的问题？
-        //Thread.sleep(50);
     }
 
     /**

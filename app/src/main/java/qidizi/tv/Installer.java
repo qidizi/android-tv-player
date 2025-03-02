@@ -19,14 +19,15 @@ import okhttp3.Response;
 public class Installer {
     private final MainActivity mainActivity;
 
-    public Installer(MainActivity mainActivity, final String apkUrl) {
+    public Installer(MainActivity mainActivity, final String apkUrl, String userAgent) {
         this.mainActivity = mainActivity;
-        new Thread(() -> downloadApk(apkUrl)).start();
+        new Thread(() -> downloadApk(apkUrl, userAgent)).start();
     }
 
-    private void downloadApk(String apkUrl) {
+    private void downloadApk(String apkUrl, String userAgent) {
         OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder().url(apkUrl).build();
+        if (null == userAgent || userAgent.isEmpty()) userAgent = mainActivity.defUserAgent;
+        Request request = new Request.Builder().addHeader("User-Agent", userAgent).url(apkUrl).build();
 
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body() == null)

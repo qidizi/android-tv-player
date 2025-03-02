@@ -2,7 +2,11 @@ package qidizi.tv;
 
 import android.util.Log;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.URLEncoder;
+import java.util.Enumeration;
 import java.util.Locale;
 
 public class Util {
@@ -58,11 +62,23 @@ public class Util {
         if (portInt > 65535)
             throw new Exception("代理端口必须小于65535: " + port);
 
-        if (host.matches("^[12]\\d{0,2}\\.[12]\\d{0,2}\\.[12]\\d{0,2}\\.[12]\\d{0,2}$")) {
+        if (host.matches("^\\d{1,3}(\\.\\d{1,3}){3}$")) {
             // ipv4
 
-            if (host.startsWith("255.")) {
-                throw new Exception("不应使用的ipv4代理主机地址： " + host);
+            if (host.startsWith("0.")) {
+                throw new Exception("ipv4代理主机地址的0地址不应使用： " + host);
+            }
+
+            String[] ip = host.split("\\.");
+            for (String s : ip) {
+                int sub = Integer.parseInt(s);
+
+                if (sub == 255)
+                    throw new Exception("ipv4代理主机的255地址不应使用： " + host);
+
+                if (sub > 255)
+                    throw new Exception("ipv4代理主机非法： " + host);
+
             }
 
             return Integer.parseInt(port);
@@ -100,6 +116,52 @@ public class Util {
         } catch (Exception e) {
             return "url转义失败：" + Util.getExceptionMessage(e) + "。待转义文字： " + v;
         }
+    }
+    protected static String getIp() throws Exception {
+        String ip = null;
+        Enumeration<NetworkInterface> en;
+
+        try {
+            en = NetworkInterface.getNetworkInterfaces();
+        } catch (Exception e) {
+            Util.debugException(e, "获取本设备网络接口时");
+            throw new Exception("无法获得网络接口: " + Util.getExceptionMessage(e));
+        }
+
+        while (en.hasMoreElements()) {
+            NetworkInterface nif = en.nextElement();
+            for (Enumeration<InetAddress> enumIps = nif.getInetAddresses(); enumIps.hasMoreElements(); ) {
+                InetAddress inetAddress = enumIps.nextElement();
+                if (inetAddress.isLoopbackAddress() || !(inetAddress instanceof Inet4Address))
+                    continue;
+                String address = inetAddress.getHostAddress();
+                if (null == address)
+                    break;
+
+                if (address.startsWith("10.") || address.startsWith("192.168.")) {
+                    ip = address;
+                    break;
+                }
+
+                if (address.startsWith("172.")) {
+                    int sub = Integer.parseInt(address.split("\\.")[1]);
+
+                    if (sub >= 16 && sub <= 31) {
+                        ip = address;
+                        break;
+                    }
+                }
+            }
+
+            if (ip != null) {
+                break;
+            }
+        }
+
+        if (null == ip)
+            throw new Exception("无法推算出本设备的内网ip");
+
+        return ip;
     }
 
 }

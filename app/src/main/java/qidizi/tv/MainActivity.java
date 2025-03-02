@@ -10,6 +10,9 @@ import android.view.Window;
 // https://stackoverflow.com/questions/21814825/you-need-to-use-a-theme-appcompat-theme-or-descendant-with-this-activity
 
 public class MainActivity extends Activity {
+    protected final String defUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0";
+    protected String tvIp = "0.0.0.0";
+    protected float baseTextSizeSp = 14f;
     protected Qr qr;
     protected TvServer tvServer;
     protected TvPlayer tvPlayer;
@@ -31,21 +34,24 @@ public class MainActivity extends Activity {
 
         if (screenWidth < 1024) {
             // 如坚果m6 density:0.50 densityDpi:80 (864x480)
-            StaticData.baseTextSizeSp *= 3;
+            baseTextSizeSp *= 3;
         }
 
-        try {
-            StaticData.tvIp = TvIp.get();
-        } catch (Exception e) {
-            Util.debugException(e, "获取电视ip");
-            tvToast.push("获取电视lan ip失败：" + Util.getExceptionMessage(e));
-            return;
-        }
-
+        // 注意顺序
         tvToast = new TvToast(this);
+        getTvIp();
         tvPlayer = new TvPlayer(this);
         tvServer = new TvServer(this);
         qr = new Qr(this);
+    }
+
+    protected void getTvIp() {
+        try {
+            tvIp = Util.getIp();
+        } catch (Exception e) {
+            Util.debugException(e, "获取电视ip");
+            tvToast.push("获取电视lan ip失败：" + Util.getExceptionMessage(e));
+        }
     }
 
     @Override

@@ -27,6 +27,11 @@ import java.util.Map;
 import okhttp3.OkHttpClient;
 
 public class TvPlayer {
+    protected String videoUrl = "";
+    protected int playbackState = 0;
+    protected int playerErrorCode = 0;
+    protected long durationMs = 0;
+    protected long positionMs = 0;
     private final TextView playerStateView;
     private final ExoPlayer exoPlayer;
     private final MainActivity activity;
@@ -36,7 +41,7 @@ public class TvPlayer {
         public void run() {
             secHandler.postDelayed(this, 1000);// 固定1秒执行一次
             // 播放器本身不提供定时刷新，需要自行秒级刷新播放进度
-            StaticData.positionMs = exoPlayer.getCurrentPosition();
+            positionMs = exoPlayer.getCurrentPosition();
         }
     };
 
@@ -49,7 +54,7 @@ public class TvPlayer {
     }
 
     private void create() {
-        playerStateView.setTextSize(StaticData.baseTextSizeSp);
+        playerStateView.setTextSize(activity.baseTextSizeSp);
         // 自定义播放界面
         // https://developer.android.google.cn/media/media3/ui/customization?hl=zh-cn
         exoPlayer.addListener(new Player.Listener() {
@@ -63,7 +68,7 @@ public class TvPlayer {
                     PlaybackException error = player.getPlayerError();
                     if (null != error) {
                         // 注意考虑清0时机
-                        StaticData.playerErrorCode = error.errorCode;
+                        playerErrorCode = error.errorCode;
                         String videoUrl = getVideoUrl();
                         activity.tvToast.push(String.format(Locale.US, "无法播放%s：%s(%d)", videoUrl, Util.getExceptionMessage(error), error.errorCode));
                     }
@@ -71,23 +76,23 @@ public class TvPlayer {
 
                 if (events.contains(Player.EVENT_POSITION_DISCONTINUITY)) {
                     // seek后，要刷新当前进度
-                    StaticData.positionMs = exoPlayer.getCurrentPosition();
+                    positionMs = exoPlayer.getCurrentPosition();
                     // 同时渲染下
                     renderPlayerState();
                 }
 
                 if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
-                    StaticData.playbackState = player.getPlaybackState();
+                    playbackState = player.getPlaybackState();
 
-                    if (StaticData.playbackState == Player.STATE_READY) {
-                        StaticData.playerErrorCode = 0;
+                    if (playbackState == Player.STATE_READY) {
+                        playerErrorCode = 0;
                         // 媒体已准备好播放，现在可以安全地获取总时长
-                        StaticData.durationMs = exoPlayer.getDuration();
+                        durationMs = exoPlayer.getDuration();
                     }
 
                     if (player.isPlaying()) {
                         // 转为播放中
-                        StaticData.playerErrorCode = 0;
+                        playerErrorCode = 0;
                         // 立刻隐藏阻挡元素，不用延时，需要按暂停即可查看
                         activity.qr.hide();
                         playerStateView.setVisibility(View.GONE);
@@ -95,7 +100,7 @@ public class TvPlayer {
                     } else {
                         // 非播放状态
                         // 立刻先保存播放进度，以确保变成暂停是同步的
-                        StaticData.positionMs = exoPlayer.getCurrentPosition();
+                        positionMs = exoPlayer.getCurrentPosition();
                         activity.qr.show();
                         playerStateView.setVisibility(View.VISIBLE);
                         // 无脑显示，如果内容空，是透明的
@@ -105,7 +110,7 @@ public class TvPlayer {
 
                 if (events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED, Player.EVENT_IS_PLAYING_CHANGED, Player.EVENT_PLAYER_ERROR)) {
                     // 播放状态变化（虽说播放时不用）、正播放非播放中切换（它与前者有可能不同时出现）、出错，更新UI；
-                    StaticData.playbackState = player.getPlaybackState();
+                    playbackState = player.getPlaybackState();
                     // 要放到获取的逻辑的后面
                     renderPlayerState();
                 }
@@ -161,7 +166,7 @@ public class TvPlayer {
     }
 
     private void renderPlayerState() {
-        playerStateView.setText(String.format("%s (%s/%s)", stateHuman(StaticData.playbackState), Util.msHuman(StaticData.positionMs), Util.msHuman(StaticData.durationMs)));
+        playerStateView.setText(String.format("%s (%s/%s)", stateHuman(playbackState), Util.msHuman(positionMs), Util.msHuman(durationMs)));
     }
 
     private String stateHuman(int state) {
@@ -185,10 +190,10 @@ public class TvPlayer {
     @OptIn(markerClass = UnstableApi.class)
     protected void playUrl(String url, String userAgent, String referer, String httpProxyHost, String httpProxyPort) throws Exception {
         // 重置某些信息
-        StaticData.videoUrl = url;
-        StaticData.playerErrorCode = 0;
-        StaticData.durationMs = 0;
-        StaticData.positionMs = 0;
+        videoUrl = url;
+        playerErrorCode = 0;
+        durationMs = 0;
+        positionMs = 0;
         try {
             final MediaSource mediaSource = createMediaSource(
                     url,

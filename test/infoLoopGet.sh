@@ -21,7 +21,7 @@ _run() {
 
 _getHtml() {
 	echo -e "\n\n\n["
-	curl -vvv  http://10.10.10.3:8888/?action=getInfo
+	curl -vvv  http://10.10.10.3:44444/?action=getInfo
 	local exitCode=$?
 	echo -e "\n\n\n]-$1\n\n\n"
 	return $exitCode

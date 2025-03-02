@@ -8,6 +8,7 @@ import android.widget.TextView;
 import java.util.ArrayDeque;
 
 public class TvToast {
+    private final MainActivity activity;
     private int index = 0;
     private final TextView toastView;
     private final int maxQueue = 30;
@@ -22,6 +23,8 @@ public class TvToast {
 
             synchronized (msgQueue) {
                 if (!isNew) return;
+                // 注意重置，防止没有新的继续刷新setText
+                isNew = false;
                 // 内容只有从无到有，不会从有到无
                 StringBuilder text = new StringBuilder();
                 for (String str : msgQueue) {
@@ -35,13 +38,14 @@ public class TvToast {
     };
 
     protected TvToast(MainActivity activity) {
+        this.activity = activity;
         toastView = activity.findViewById(R.id.toastView);
         create();
     }
 
     private void create() {
         // todo 不同设备分辨率文本差距非常大，可能需要找到一个动态适配的方案
-        toastView.setTextSize(StaticData.baseTextSizeSp);
+        toastView.setTextSize(activity.baseTextSizeSp);
         // 立刻执行
         secRunnable.run();
     }
