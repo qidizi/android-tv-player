@@ -28,7 +28,7 @@ import okhttp3.OkHttpClient;
 
 public class TvPlayer {
     protected String videoUrl = "";
-    protected int playbackState = 0;
+    protected int playbackState = Player.STATE_IDLE;
     protected int playerErrorCode = 0;
     protected long durationMs = 0;
     protected long positionMs = 0;
@@ -118,6 +118,7 @@ public class TvPlayer {
         });
         ((PlayerView) activity.findViewById(R.id.videoView)).setPlayer(exoPlayer);
         secRunnable.run();
+        renderPlayerState();
     }
 
     protected void onKeyDown(int keyCode) {
